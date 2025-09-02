@@ -1,0 +1,10 @@
+torch
+torchvision
+langchain 
+langchain_community 
+sentence_transformers 
+FlagEmbedding 
+chromadb 
+chardet 
+nltk
+langchain_openai
