@@ -1,5 +1,5 @@
 # GdRAG
-data/*/*.txt
+data/
 retrieval_stores/data/*
 
 # Byte-compiled / optimized / DLL files
