@@ -362,6 +362,7 @@ def construct_retrieval_database(data_name_list: List[str],
         splitter = get_splitter(split_method[n_data_name])
         # split the texts
         split_texts += splitter.split_documents(documents)
+        
     embed_model = get_embed_model(encoder_model_name, device, retrival_database_batch_size)
     retrieval_name = '_'.join(data_name_list)
     if len(data_name_list) != 1:

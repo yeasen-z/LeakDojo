@@ -4,8 +4,7 @@
 - models: embedding model and local llm checkpoints
 - configs: diff rags sys config file
 - rag: core python files
-- stores_vector: vector RAG base
-- stores_graph: graph RAG base
+- retrieval_stores: RAG base
 - demos: simple tests
 
 
