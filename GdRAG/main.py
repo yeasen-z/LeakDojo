@@ -1,4 +1,4 @@
-from configs import *
+from references import Zeng24ChatDoctor
 from rag import get_retrieval_database, run_llm
 import torch
 
