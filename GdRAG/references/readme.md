@@ -1,0 +1,1 @@
+每个方法要自己创建自己的question template和创建函数

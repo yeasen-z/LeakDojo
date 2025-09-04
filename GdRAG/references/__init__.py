@@ -1,5 +1,5 @@
-from .zeng24 import Zeng24ChatDoctor
+from .zeng24 import zeng24_config
 
 __all__ = [
-    "Zeng24ChatDoctor"
+    "zeng24_config"
     ]

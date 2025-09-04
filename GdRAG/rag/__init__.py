@@ -1,8 +1,9 @@
 # keep package
-from .data_retrieval import get_retrieval_database
+from .data_retrieval import get_retriever, get_retrieved_contexts
 from .llm_local_inference import run_llm
 
 __all__ = [
-    "get_retrieval_database",
+    "get_retriever",
+    "get_retrieved_contexts",
     "run_llm"
     ]

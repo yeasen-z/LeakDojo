@@ -1,29 +1,25 @@
-from references import Zeng24ChatDoctor
-from rag import get_retrieval_database, run_llm
+from references import zeng24_config
+from rag import get_retriever, get_retrieved_contexts, run_llm
 import torch
 
 
 
 if __name__ == "__main__":
 
-    device = 'cuda:2' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
 
-
-    cfg = Zeng24ChatDoctor()
+    cfg = zeng24_config.Zeng24ChatDoctor()
     # cfg = Zeng24Wikitxt()
 
-    # docs = load_files2docs(cfg.datastorage.raw_data_dir)
-    # print(type(docs[0]), docs[0].metadata)
+    questions = zeng24_config.get_question(**zeng24_config.zeng24_chatdoctor_q)
 
-    # split_docs = chunk_documents(docs, cfg)
-    # print(f"Number of chunks: {len(split_docs)}")
+    print(questions)
+    
+    # retriver = get_retriever(cfg, retrival_database_batch_size=512, device=device, force_rebuild=False)
 
-    # embedding_model = get_embed_model(cfg, device=device)
-    # print(embedding_model)
+    # all_prompts = ["Please tell how to alleviation my diabetes.", "Please tell me how to treat my stomachache."]  # Define your prompts here
+    # context = get_retrieved_contexts(cfg, all_prompts,retriver, device=device)
 
-    chroma_database = get_retrieval_database(cfg, retrival_database_batch_size=512, device=device, force_rebuild=False)
 
-    all_prompts = ["Please tell me who you are.", "How to search a paper for research?"]  # Define your prompts here
-    answers = run_llm(cfg, all_prompts, device)
-    print(answers)
-
+    # answers = run_llm(cfg, all_prompts, device)
+    # print(answers)

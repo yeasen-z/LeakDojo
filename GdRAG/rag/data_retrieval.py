@@ -8,6 +8,11 @@ from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
+from langchain.schema import BaseRetriever
+from sentence_transformers import SentenceTransformer, util
+
+from FlagEmbedding import FlagReranker
+
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -139,7 +144,7 @@ def chroma_database(cfg: BaseConfig, retrieval_store_path: str, retrieval_name: 
     return retrieval_database
 
 
-def get_retrieval_database(cfg: BaseConfig, force_rebuild: bool = False, retrival_database_batch_size: int = 512, device = 'cpu'):
+def get_retriever(cfg: BaseConfig, force_rebuild: bool = False, retrival_database_batch_size: int = 512, with_database: bool = False ,device = 'cpu'):
     '''
     Get the data storage for the retrieval system, build if not constructed before or set force_rebuild True
     '''
@@ -153,9 +158,52 @@ def get_retrieval_database(cfg: BaseConfig, force_rebuild: bool = False, retriva
         shutil.rmtree(retrieval_store_path)
         print("clean finished")
     
-    retrieval_database = chroma_database(cfg, retrieval_store_path, retrieval_name, retrival_database_batch_size, device)
-
-    return retrieval_database
-
+    if cfg.datastorage.tool == 'chroma':
+        retrieval_database = chroma_database(cfg, retrieval_store_path, retrieval_name, retrival_database_batch_size, device)
 
 
+    if cfg.retrieval.method == 'similarity_score_threshold':
+        retriever: BaseRetriever = retrieval_database.as_retriever(
+                search_type = cfg.retrieval.method,
+                search_kwargs={"k": cfg.retrieval.params.get("k", 4),
+                            'score_threshold': cfg.retrieval.params.get("score_threshold", 0.75)}  # get k, default 4
+            )
+    elif cfg.retrieval.method == 'mmr':
+        retriever: BaseRetriever = retrieval_database.as_retriever(
+                search_type = cfg.retrieval.method,
+                search_kwargs={"k": cfg.retrieval.params.get("k", 4),
+                            'fetch_k': cfg.retrieval.params.get("fetch_k", 8)}  # get k, default 4
+            )
+    
+    print(f"Retriever of {cfg.datastorage.tool} is ready.")
+
+    if with_database:
+        return retriever, retrieval_database
+    else:
+        return retriever
+
+
+def get_retrieved_contexts(cfg: BaseConfig, query: List[str], retriever: BaseRetriever, device: str = 'cpu') -> List[str]:
+    '''
+    Get the retrieved context from the retriever based on the query.
+    using the as_retriever() interface.
+    '''
+    context=[]
+
+    if cfg.retrieval.rerank:
+        # rerank the documents based on similarity score
+        reranker = FlagReranker(cfg.retrieval.rerank, devices=device, use_fp16=True)
+
+
+    # docs = retriever.batch(query)
+    for q in query:
+        docs = retriever.invoke(q)
+
+        if cfg.retrieval.rerank:
+            pairs = [(q, con.page_content) for con in docs]
+            scores = reranker.compute_score(pairs)
+            reranked_docs = [doc for doc, score in sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)]
+
+        context.append(cfg.retrieval.adhesive.join([doc.page_content for doc in reranked_docs]))
+        
+    return context

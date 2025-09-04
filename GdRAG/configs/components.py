@@ -17,8 +17,8 @@ class ChunkConfig:
 @dataclass
 class EmbeddingConfig:
     provider: str = "hf"  # "hf" | "openai"
-    model_name: str = "all-MiniLM-L6-v2"
-    model_dir: str = "all-MiniLM-L6-v2"
+    model_name: str = "bge-large-en-v1.5",
+    model_dir: str = "BAAI/bge-large-en-v1.5"
 
 @dataclass
 class LLMConfig:
@@ -40,8 +40,13 @@ class PromptConfig:
 
 @dataclass
 class RetrievalConfig:
-    k: int = 4
-    score_threshold: float = 0.0
+    method: str = "similarity_score_threshold"  # "similarity_score_threshold" | "mmr"
+    rerank: str = 'BAAI/bge-reranker-large'
+    adhesive: str = "\n\n"
+    params: Dict[str, Any] = field(default_factory=lambda: {
+        "k": 4,
+        "score_threshold": 0.75
+    })
 
 
 @dataclass
@@ -73,4 +78,13 @@ class BaseConfig:
     prompt: PromptConfig = PromptConfig(
         suffix=["context: ", "question: ", "answer:"],
         adhesive="\n"
+    )
+    retrieval: RetrievalConfig = RetrievalConfig(
+        method = "mmr",
+        rerank = None,
+        adhesive = "\n\n",
+        params = {
+            "k": 4,
+            "fetch_k": 40
+        }
     )
