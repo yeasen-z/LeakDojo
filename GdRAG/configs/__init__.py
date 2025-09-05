@@ -1,4 +1,4 @@
-from .components import BaseConfig
+from .base import BaseConfig
 
 __all__ = [
     "BaseConfig", 

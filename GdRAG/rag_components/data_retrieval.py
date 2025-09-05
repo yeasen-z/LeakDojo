@@ -160,7 +160,8 @@ def get_retriever(cfg: BaseConfig, force_rebuild: bool = False, retrival_databas
     
     if cfg.datastorage.tool == 'chroma':
         retrieval_database = chroma_database(cfg, retrieval_store_path, retrieval_name, retrival_database_batch_size, device)
-
+    else:
+        raise Exception(f"Datastore {cfg.datastorage.tool} not found, please check.")
 
     if cfg.retrieval.method == 'similarity_score_threshold':
         retriever: BaseRetriever = retrieval_database.as_retriever(
@@ -168,13 +169,15 @@ def get_retriever(cfg: BaseConfig, force_rebuild: bool = False, retrival_databas
                 search_kwargs={"k": cfg.retrieval.params.get("k", 4),
                             'score_threshold': cfg.retrieval.params.get("score_threshold", 0.75)}  # get k, default 4
             )
+        print(f"Retriever of {cfg.retrieval.method} is ready.")
     elif cfg.retrieval.method == 'mmr':
         retriever: BaseRetriever = retrieval_database.as_retriever(
                 search_type = cfg.retrieval.method,
                 search_kwargs={"k": cfg.retrieval.params.get("k", 4),
                             'fetch_k': cfg.retrieval.params.get("fetch_k", 8)}  # get k, default 4
             )
-    
+        print(f"Retriever of {cfg.retrieval.method} is ready.")
+
     print(f"Retriever of {cfg.datastorage.tool} is ready.")
 
     if with_database:

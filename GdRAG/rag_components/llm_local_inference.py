@@ -38,5 +38,7 @@ def run_llm(cfg: BaseConfig, all_prompts, device):
         generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
         generated_text = generated_text[len(prompt):].strip()
         answers.append(generated_text)
-    
+
+    with open(cfg.expconfig.output_dir + '/answers.json', 'w', encoding='utf-8') as f_a:
+        json.dump(answers, f_a, ensure_ascii=False, indent=2)
     return answers

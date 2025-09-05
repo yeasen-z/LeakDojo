@@ -47,6 +47,11 @@ class RetrievalConfig:
         "k": 4,
         "score_threshold": 0.75
     })
+    
+
+@dataclass
+class ExpConfig:
+    output_dir: str = "./exp/demo/"
 
 
 @dataclass
@@ -87,4 +92,7 @@ class BaseConfig:
             "k": 4,
             "fetch_k": 40
         }
+    )
+    expconfig: ExpConfig = ExpConfig(
+        output_dir = "./exp/demo/"
     )
