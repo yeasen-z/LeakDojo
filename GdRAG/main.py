@@ -16,7 +16,7 @@ if __name__ == "__main__":
     7. 评估模块，单独实现
     '''
 
-    device = 'cuda:1' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda:6' if torch.cuda.is_available() else 'cpu'
     
     cfg = zeng24_config.Zeng24ChatDoctor()    
     

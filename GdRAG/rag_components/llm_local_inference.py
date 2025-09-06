@@ -11,6 +11,11 @@ from configs import BaseConfig
 def summarization():
     pass
 
+def get_llm_output_file(cfg: BaseConfig):
+    model_name = os.path.basename(cfg.llm.model_name)
+    return f"outputs-{model_name}-{cfg.llm.temperature}-{cfg.llm.top_p}-{cfg.llm.max_seq_len}-{cfg.llm.max_gen_len}.json"
+
+
 def get_llm_model(cfg: BaseConfig, device):
     tokenizer = AutoTokenizer.from_pretrained(cfg.llm.model_name)
     generator = AutoModelForCausalLM.from_pretrained(
@@ -39,6 +44,8 @@ def run_llm(cfg: BaseConfig, all_prompts, device):
         generated_text = generated_text[len(prompt):].strip()
         answers.append(generated_text)
 
-    with open(cfg.expconfig.output_dir + '/answers.json', 'w', encoding='utf-8') as f_a:
+
+    with open(os.path.join(cfg.expconfig.output_dir, get_llm_output_file(cfg)), 'w', encoding='utf-8') as f_a:
         json.dump(answers, f_a, ensure_ascii=False, indent=2)
+    
     return answers

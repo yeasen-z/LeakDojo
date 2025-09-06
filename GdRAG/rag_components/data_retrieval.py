@@ -6,7 +6,7 @@ import shutil
 
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain.schema import Document
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import TextSplitter, RecursiveCharacterTextSplitter
 
 from langchain.schema import BaseRetriever
 from sentence_transformers import SentenceTransformer, util
@@ -19,8 +19,16 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
 from configs import BaseConfig
-from .utils import LineBreakTextSplitter, SingleFileSplitter
 
+
+class SingleFileSplitter(TextSplitter):
+    def split_text(self, text: str) -> List[str]:
+        return [text]
+
+class LineBreakTextSplitter(TextSplitter):
+    def split_text(self, text: str) -> List[str]:
+        return text.split("\n\n")
+    
 def get_retrieval_info(cfg: BaseConfig):
     """
     Get retrieval information from the configuration.
@@ -186,12 +194,16 @@ def get_retriever(cfg: BaseConfig, force_rebuild: bool = False, retrival_databas
         return retriever
 
 
-def get_retrieved_contexts(cfg: BaseConfig, query: List[str], retriever: BaseRetriever, device: str = 'cpu') -> List[str]:
+def get_retrieved_contexts(cfg: BaseConfig, query: List[str], retriever: BaseRetriever, join_adhesice: bool = False, device: str = 'cpu') -> List[str]:
     '''
     Get the retrieved context from the retriever based on the query.
     using the as_retriever() interface.
+    return the united context and the sources.
+        - context: List[str], the united context for each query
+        - sources: List[List[str]], the sources for each query, which is a list of list of sources
     '''
     context=[]
+    sources=[]
 
     if cfg.retrieval.rerank:
         # rerank the documents based on similarity score
@@ -207,6 +219,11 @@ def get_retrieved_contexts(cfg: BaseConfig, query: List[str], retriever: BaseRet
             scores = reranker.compute_score(pairs)
             reranked_docs = [doc for doc, score in sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)]
 
-        context.append(cfg.retrieval.adhesive.join([doc.page_content for doc in reranked_docs]))
-        
-    return context
+        if join_adhesice:
+            context.append(cfg.retrieval.adhesive.join([doc.page_content for doc in reranked_docs]))
+        else:
+            context.append([doc.page_content for doc in reranked_docs])
+
+        sources.append([doc.metadata.get("source", "unknown") for doc in reranked_docs])
+
+    return context, sources

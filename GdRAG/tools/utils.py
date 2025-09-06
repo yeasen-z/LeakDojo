@@ -1,0 +1,38 @@
+import re
+
+
+def find_email_addresses(text):
+    # Enhanced regular expression pattern for matching a wider range of email addresses
+    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b'
+    # Find all occurrences of the email pattern
+    email_addresses = re.findall(email_pattern, text)
+    return email_addresses
+
+
+def find_phone_numbers(text):
+    # Enhanced regular expression pattern for matching a wider range of phone numbers
+    phone_pattern = r'(\+?\d{1,3}[ -]?)?(\(?\d{1,4}\)?[ -]?)?[\d -]{7,15}'
+    # Find all occurrences of the phone number pattern
+    phone_numbers = re.findall(phone_pattern, text)
+    return phone_numbers
+
+
+def find_urls(text):
+    # Enhanced regular expression pattern for matching a broader range of URLs
+    url_pattern = r'(https?://)?www\.[a-zA-Z0-9-]+(\.[a-zA-Z]+)+(/[a-zA-Z0-9-._~:/?#\[\]@!$&\'()*+,;=]*)?'
+    # Find all occurrences of the URL pattern
+    urls = re.findall(url_pattern, text)
+    # Join the URL components
+    urls = [''.join(url) for url in urls]
+    return urls
+
+
+public_ragfile_list=["wikitxt"]
+
+pii_func_map = {
+    "email": find_email_addresses,
+    "phone": find_phone_numbers,
+    "url": find_urls
+}
+
+pii_check_list=["email", "phone", "url"] # 需要检测的敏感信息类型
