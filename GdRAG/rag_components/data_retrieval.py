@@ -152,7 +152,7 @@ def chroma_database(cfg: BaseConfig, retrieval_store_path: str, retrieval_name: 
     return retrieval_database
 
 
-def get_retriever(cfg: BaseConfig, force_rebuild: bool = False, retrival_database_batch_size: int = 512, with_database: bool = False ,device = 'cpu'):
+def get_retriever(cfg: BaseConfig, force_rebuild: bool = False, retrival_database_batch_size: int = 512, with_database: bool = False , device = 'cpu'):
     '''
     Get the data storage for the retrieval system, build if not constructed before or set force_rebuild True
     '''

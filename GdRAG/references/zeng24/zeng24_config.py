@@ -18,7 +18,8 @@ class Zeng24ChatDoctor(BaseConfig):
     )
     llm: LLMConfig = LLMConfig(
         provider = "hf",  # "api" | "hf" 
-        model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/shakechen/Llama-2-7b-chat-hf",
+        # model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/shakechen/Llama-2-7b-chat-hf",
+        model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/ydyajyA/Llama-2-13b-chat-hf",
         temperature = 0.6,
         top_p = 0.9,
         max_seq_len = 1024,

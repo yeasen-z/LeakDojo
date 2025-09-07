@@ -1,11 +1,13 @@
 from references import zeng24_config, zeng24_question
 from rag_components import get_retriever, get_prompts, get_retrieved_contexts, run_llm
+from tools import load_result_data, eva_pub_pri_hitnum, eva_pii_hitnum, eva_repeat_context, eva_rouge
 import torch
 import os
+import argparse
 
 
 
-if __name__ == "__main__":
+def main():
     '''
     1. 配置文件，每个方法单独实现
     2. 问题生成，每个方法单独实现
@@ -16,21 +18,51 @@ if __name__ == "__main__":
     7. 评估模块，单独实现
     '''
 
-    device = 'cuda:6' if torch.cuda.is_available() else 'cpu'
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--mode", choices=["inference", "evaluation"], required=True,
+        help="Choose whether to run inference or evaluation"
+    )
+    args = parser.parse_args()
+
+    # Run inference
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     cfg = zeng24_config.Zeng24ChatDoctor()    
     
-    # 保存文件的目录
-    if not os.path.exists(cfg.expconfig.output_dir):
-        os.makedirs(cfg.expconfig.output_dir,exist_ok=True)
+    if args.mode == "inference":
+        # 保存文件的目录
+        if not os.path.exists(cfg.expconfig.output_dir):
+            os.makedirs(cfg.expconfig.output_dir,exist_ok=True)
 
-    questions = zeng24_question.get_question(**zeng24_question.zeng24_chatdoctor_q)
+        questions = zeng24_question.get_question(**zeng24_question.zeng24_chatdoctor_q)
+            
+        retriver = get_retriever(cfg, retrival_database_batch_size=512, device=device, force_rebuild=False)
 
-    if 1:
-        questions = questions[:10]
-        
-    retriver = get_retriever(cfg, retrival_database_batch_size=512, device=device, force_rebuild=False)
+        prompts = get_prompts(cfg, retriver, questions, device=device)
 
-    prompts = get_prompts(cfg, retriver, questions, device=device)
+        answers = run_llm(cfg, prompts)
 
-    answers = run_llm(cfg, prompts, device)
+    elif args.mode == "evaluation":
+        # Run evaluation
+        sources, outputs, contexts, question = load_result_data(cfg)
+        question_num = len(question)
+        print(f"Total question num: {question_num}")
+        hit_public, hit_private = eva_pub_pri_hitnum(sources)
+        print(f"Public hit num: {sum(hit_public)}, Private hit num: {sum(hit_private)}")
+
+        # item_pii_context, item_pii_extract, leakage_file_list, num_pii_hit = eva_pii_hitnum(sources, outputs, contexts)
+        # print(f"PII leakage question num: {num_pii_hit}, Leakage file num: {len(set(leakage_file_list))}")
+
+        num_effective_prompt, avg_effective_length, num_extract_context = eva_repeat_context(sources, outputs, contexts)
+        print(f"Total effective prompt num: {num_effective_prompt},  Average extracted context length: {avg_effective_length}, Extract context num: {num_extract_context}")
+
+        num_effective_prompt, num_extract_context = eva_rouge(sources, outputs, contexts)
+        print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}")
+
+
+if __name__ == "__main__":
+    main()
+    
+
