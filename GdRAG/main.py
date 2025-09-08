@@ -1,6 +1,6 @@
 from references import zeng24_config, zeng24_question
-from rag_components import get_retriever, get_prompts, get_retrieved_contexts, run_llm
-from tools import load_result_data, eva_pub_pri_hitnum, eva_pii_hitnum, eva_repeat_context, eva_rouge
+from rag_components import vector_retriever, get_prompts, vector_retrieved_contexts, run_llm, vector_embed_model
+from tools import load_saved_data, eva_pub_pri_hitnum, eva_pii_hitnum, eva_repeat_context, eva_rouge, eva_bleu, eva_embedding_similarity
 import torch
 import os
 import argparse
@@ -17,7 +17,6 @@ def main():
     6. 根据prompts生成answers，并保存
     7. 评估模块，单独实现
     '''
-
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -38,7 +37,7 @@ def main():
 
         questions = zeng24_question.get_question(**zeng24_question.zeng24_chatdoctor_q)
             
-        retriver = get_retriever(cfg, retrival_database_batch_size=512, device=device, force_rebuild=False)
+        retriver = vector_retriever(cfg, retrival_database_batch_size=512, device=device, force_rebuild=False)
 
         prompts = get_prompts(cfg, retriver, questions, device=device)
 
@@ -46,20 +45,23 @@ def main():
 
     elif args.mode == "evaluation":
         # Run evaluation
-        sources, outputs, contexts, question = load_result_data(cfg)
+        sources, outputs, contexts, question = load_saved_data(cfg)
         question_num = len(question)
         print(f"Total question num: {question_num}")
         hit_public, hit_private = eva_pub_pri_hitnum(sources)
         print(f"Public hit num: {sum(hit_public)}, Private hit num: {sum(hit_private)}")
-
-        # item_pii_context, item_pii_extract, leakage_file_list, num_pii_hit = eva_pii_hitnum(sources, outputs, contexts)
-        # print(f"PII leakage question num: {num_pii_hit}, Leakage file num: {len(set(leakage_file_list))}")
 
         num_effective_prompt, avg_effective_length, num_extract_context = eva_repeat_context(sources, outputs, contexts)
         print(f"Total effective prompt num: {num_effective_prompt},  Average extracted context length: {avg_effective_length}, Extract context num: {num_extract_context}")
 
         num_effective_prompt, num_extract_context = eva_rouge(sources, outputs, contexts)
         print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}")
+
+        num_effective_prompt, num_extract_context = eva_bleu(sources, outputs, contexts)
+        print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}")
+
+        num_effective_prompt, num_extract_context, avg_max_sim, avg_mean_sim = eva_embedding_similarity(sources, outputs, contexts, embed_model=vector_embed_model(cfg, device=device), device=device)
+        print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}, Average max embedding similarity: {avg_max_sim}, Average mean embedding similarity: {avg_mean_sim}")
 
 
 if __name__ == "__main__":

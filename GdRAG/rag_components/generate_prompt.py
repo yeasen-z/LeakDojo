@@ -5,7 +5,7 @@ import os
 
 
 from configs import BaseConfig
-from .data_retrieval import get_retrieved_contexts
+from .build_vector_retriever import vector_retrieved_contexts
 
 
 def get_prompts(cfg: BaseConfig, retriever: BaseRetriever, questions: List[str], device: str) -> List[str]:
@@ -15,7 +15,7 @@ def get_prompts(cfg: BaseConfig, retriever: BaseRetriever, questions: List[str],
     '''
     prompts = []
 
-    contexts, sources = get_retrieved_contexts(cfg, questions, retriever, device=device)
+    contexts, sources = vector_retrieved_contexts(cfg, questions, retriever, device=device)
     for context, question in zip(contexts, questions):
         prompt = f"{cfg.prompt.suffix[0]}{cfg.retrieval.adhesive.join(context)}{cfg.prompt.adhesive}{cfg.prompt.suffix[1]}{question}{cfg.prompt.adhesive}{cfg.prompt.suffix[2]}"
         prompts.append(prompt)

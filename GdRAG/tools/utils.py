@@ -1,4 +1,28 @@
 import re
+import os
+import json
+from configs import BaseConfig
+from rag_components import get_llm_output_file
+
+
+def load_saved_data(cfg: BaseConfig):
+    # if output not exist, return is question
+    res_path = os.path.join(cfg.expconfig.output_dir, get_llm_output_file(cfg))
+
+    if not os.path.exists(res_path):
+        raise FileNotFoundError(f"The file does not exist: {res_path}")        
+
+    with open(res_path, 'r', encoding='utf-8') as f:
+        outputs = json.load(f)
+
+    with open(os.path.join(cfg.expconfig.output_dir, 'context.json'), 'r', encoding='utf-8') as f:
+        contexts = json.load(f)
+    with open(os.path.join(cfg.expconfig.output_dir, 'sources.json'), 'r', encoding='utf-8') as f:
+        sources = json.load(f)
+    with open(os.path.join(cfg.expconfig.output_dir, 'question.json'), 'r', encoding='utf-8') as f:
+        question = json.load(f)
+
+    return sources, outputs, contexts, question
 
 
 def find_email_addresses(text):

@@ -1,10 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Dict, Any, List
+import os
 
 @dataclass
 class DataStorageConfig:
+    data_name: str = "wikitxt"
+    data_region: str = "general" # "general" | "medical" | "finance" | "science" | "legal"
     raw_data_dir: List[str] = field(default_factory=List)
-    tool: str = "chroma"  # "chroma" | "faiss"
+    tool: str = "vector-chroma"  # # "vector-chroma" | "vector-faiss" | "graph-chroma" | "graph-faiss"
 
 @dataclass
 class ChunkConfig:
@@ -44,10 +47,10 @@ class RetrievalConfig:
     rerank: str = 'BAAI/bge-reranker-large'
     adhesive: str = "\n\n"
     params: Dict[str, Any] = field(default_factory=lambda: {
-        "k": 4,
+        "k": 2,
         "score_threshold": 0.75
     })
-    
+
 
 @dataclass
 class ExpConfig:
@@ -57,8 +60,10 @@ class ExpConfig:
 @dataclass
 class BaseConfig:
     datastorage: DataStorageConfig = DataStorageConfig(
+        data_name = "wikitxt",
+        data_region = "general",
         raw_data_dir = ["./data/wikitxt"],
-        tool = "chroma"  # "chroma" | "faiss"
+        tool = "vector-chroma"  # # "vector-chroma" | "vector-faiss" | "graph-chroma" | "graph-faiss"
     )
     chunk: ChunkConfig = ChunkConfig(
         method = 'recursive',
@@ -89,10 +94,20 @@ class BaseConfig:
         rerank = None,
         adhesive = "\n\n",
         params = {
-            "k": 4,
+            "k": 2,
             "fetch_k": 40
         }
     )
-    expconfig: ExpConfig = ExpConfig(
-        output_dir = "./exp/demo/"
-    )
+
+    @property
+    def expconfig(self) -> ExpConfig:
+        """动态生成实验输出目录"""
+        dataset = os.path.basename(self.datastorage.data_name)  # chatdoctor
+        store = self.datastorage.tool                           # vector-chroma
+        embed = self.embedding.model_name.replace(".","_")                       # bge-large-en-v1.5  -> bge-large-en-v1_5
+        llm = os.path.basename(self.llm.model_name).replace(".","_")             # Llama-2-13b-chat-hf
+        k = self.retrieval.params.get("k", 2)                                    # 2
+        retrieved_method = self.retrieval.method
+
+        save_dir = f"./exp/{dataset}/{store}/{embed}-{llm}/{retrieved_method}-{k}/"
+        return ExpConfig(output_dir=save_dir)

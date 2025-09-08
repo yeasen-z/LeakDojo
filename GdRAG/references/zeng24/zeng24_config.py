@@ -4,8 +4,10 @@ from configs.base import *
 class Zeng24ChatDoctor(BaseConfig):
     # 只覆盖需要修改的部分
     datastorage: DataStorageConfig = DataStorageConfig(
+        data_name="chatdoctor",
+        data_region = "medical",
         raw_data_dir = ["./data/chatdoctor"],
-        tool = "chroma"  # "chroma" | "faiss"
+        tool = "vector-chroma"  # "vector-chroma" | "vector-faiss" | "graph-chroma" | "graph-faiss"
     )
     chunk: ChunkConfig = ChunkConfig(
         method='by_two_line_breaks',
@@ -18,8 +20,8 @@ class Zeng24ChatDoctor(BaseConfig):
     )
     llm: LLMConfig = LLMConfig(
         provider = "hf",  # "api" | "hf" 
-        # model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/shakechen/Llama-2-7b-chat-hf",
-        model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/ydyajyA/Llama-2-13b-chat-hf",
+        model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/shakechen/Llama-2-7b-chat-hf",
+        # model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/ydyajyA/Llama-2-13b-chat-hf",
         temperature = 0.6,
         top_p = 0.9,
         max_seq_len = 1024,
@@ -34,12 +36,9 @@ class Zeng24ChatDoctor(BaseConfig):
         rerank = 'BAAI/bge-reranker-large',
         adhesive = "\n\n",
         params={
-            "k": 4,
+            "k": 2,
             "score_threshold": 0.0
         }
-    )
-    expconfig: ExpConfig = ExpConfig(
-        output_dir = "./exp/zeng24/"
     )
 
 
