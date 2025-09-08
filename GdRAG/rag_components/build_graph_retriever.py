@@ -252,7 +252,7 @@ def extract_triplets_batch(chunk_docs: List[Document], batch_size: int = 1, max_
             chunks = [tokenizer.decode(token_ids[j:j+max_length]) for j in range(0, len(token_ids), max_length)]
             
             for chunk in chunks:
-                inputs = tokenizer(chunk, return_tensors="pt", truncation=True, max_length=max_length).to(device)
+                inputs = tokenizer(chunk, return_tensors="pt", truncation=True, max_length=max_length).to("cuda")
                 with torch.no_grad():
                     outputs = model.generate(**inputs, max_new_tokens=max_new_tokens)
                 decoded = tokenizer.decode(outputs[0], skip_special_tokens=True)
