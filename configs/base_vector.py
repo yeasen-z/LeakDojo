@@ -27,7 +27,7 @@ class vEmbeddingConfig:
 class vLLMConfig:
     provider: str = "hf"  # "api" | "hf" 
     model_name: str = "meta-llama/Llama-2-7b-chat-hf"
-    vllm_parallel_size: int = 2
+    vllm_parallel_size: int = 1
     vllm_gpu_memory_utilization: float = 0.9
     temperature: float = 0.6
     top_p: float = 0.9
