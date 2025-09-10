@@ -9,7 +9,7 @@
 
 # 环境搭建
 ```bash
-pip install langchain transformers sentence-transformers
+pip install langchain transformers sentence-transformers rouge_score fire nltk pandas joblib
 ```
 
 # 安装vllm
