@@ -2,31 +2,18 @@ import fire
 import warnings
 import json
 import os
-from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
-from configs import BaseConfig
+from configs import VectorBaseConfig
+from .rag_utils import get_llm_output_file, get_llm_model_hf
 
 
 def summarization():
     pass
 
-def get_llm_output_file(cfg: BaseConfig):
-    model_name = os.path.basename(cfg.llm.model_name)
-    return f"outputs-{model_name}-{cfg.llm.temperature}-{cfg.llm.top_p}-{cfg.llm.max_seq_len}-{cfg.llm.max_gen_len}.json"
 
-
-def get_llm_model(cfg: BaseConfig):
-    tokenizer = AutoTokenizer.from_pretrained(cfg.llm.model_name)
-    generator = AutoModelForCausalLM.from_pretrained(
-        cfg.llm.model_name,
-        device_map = "auto",
-        dtype = torch.float16
-        )
-    return tokenizer, generator
-
-def run_llm(cfg: BaseConfig, all_prompts):
-    tokenizer, generator = get_llm_model(cfg)
+def run_llm(cfg: VectorBaseConfig, all_prompts):
+    tokenizer, generator = get_llm_model_hf(cfg)
 
     answers = []
     for prompt in all_prompts:

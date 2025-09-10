@@ -4,11 +4,11 @@ import json
 import os
 
 
-from configs import BaseConfig
+from configs import VectorBaseConfig
 from .build_vector_retriever import vector_retrieved_contexts
 
 
-def get_prompts(cfg: BaseConfig, retriever: BaseRetriever, questions: List[str], device: str) -> List[str]:
+def get_prompts(cfg: VectorBaseConfig, retriever: BaseRetriever, questions: List[str], device: str) -> List[str]:
     '''
     The prompt is consisted by:
         f'{suffix[0]}{united context}{template_adhesive}{suffix[1]}{question}{template_adhesive}{suffix[2]}'

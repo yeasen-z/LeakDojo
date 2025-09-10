@@ -18,11 +18,11 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_community.vectorstores import FAISS
 
-from configs import BaseConfig
-from .build_retriver_utils import get_retrieval_info, get_data_chunks
+from configs import VectorBaseConfig
+from .rag_utils import get_retrieval_info, get_data_chunks
 
 
-def vector_embed_model(cfg: BaseConfig,
+def vector_embed_model(cfg: VectorBaseConfig,
                     device: str = 'cpu',
                     retrival_database_batch_size: int = 256) -> OpenAIEmbeddings:
     """
@@ -42,7 +42,7 @@ def vector_embed_model(cfg: BaseConfig,
     
     return embed_model
 
-def vector_chroma_database(cfg: BaseConfig, retrieval_store_path: str, retrieval_name: str, retrival_database_batch_size: int, device: str):
+def vector_chroma_database(cfg: VectorBaseConfig, retrieval_store_path: str, retrieval_name: str, retrival_database_batch_size: int, device: str):
     # get retrieval data
     if os.path.exists(retrieval_store_path) and os.listdir(retrieval_store_path):
         print(f'loading {cfg.datastorage.tool} database of {retrieval_name} using {cfg.embedding.model_name}')
@@ -64,7 +64,7 @@ def vector_chroma_database(cfg: BaseConfig, retrieval_store_path: str, retrieval
     return retrieval_database
 
 
-def vector_retriever(cfg: BaseConfig, force_rebuild: bool = False, retrival_database_batch_size: int = 512, with_database: bool = False , device = 'cpu'):
+def vector_retriever(cfg: VectorBaseConfig, force_rebuild: bool = False, retrival_database_batch_size: int = 512, with_database: bool = False , device = 'cpu'):
     '''
     Get the data storage for the retrieval system, build if not constructed before or set force_rebuild True
     '''
@@ -106,7 +106,7 @@ def vector_retriever(cfg: BaseConfig, force_rebuild: bool = False, retrival_data
         return retriever
 
 
-def vector_retrieved_contexts(cfg: BaseConfig, query: List[str], retriever: BaseRetriever, join_adhesive: bool = False, device: str = 'cpu') -> List[str]:
+def vector_retrieved_contexts(cfg: VectorBaseConfig, query: List[str], retriever: BaseRetriever, join_adhesive: bool = False, device: str = 'cpu') -> List[str]:
     '''
     Get the retrieved context from the retriever based on the query.
     using the as_retriever() interface.

@@ -5,11 +5,12 @@ import torch
 import shutil
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain.schema import Document
-from configs import BaseConfig
+from configs import VectorBaseConfig
 from langchain.text_splitter import TextSplitter, RecursiveCharacterTextSplitter
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
-def get_retrieval_info(cfg: BaseConfig):
+def get_retrieval_info(cfg: VectorBaseConfig):
     """
     Get retrieval information from the configuration.
     """
@@ -64,11 +65,11 @@ class LineBreakTextSplitter(TextSplitter):
         return text.split("\n\n")
 
 
-def chunk_documents(documents: List[Document], cfg: BaseConfig):
+def chunk_documents(documents: List[Document], cfg: VectorBaseConfig):
     '''
     Chunk documents into smaller pieces based on the configuration.
     '''
-    def get_splitter(cfg: BaseConfig):
+    def get_splitter(cfg: VectorBaseConfig):
         if cfg.chunk.method == "by_single_file":
             return SingleFileSplitter()
         elif cfg.chunk.method == "by_two_line_breaks":
@@ -86,7 +87,7 @@ def chunk_documents(documents: List[Document], cfg: BaseConfig):
     return split_docs
 
 
-def get_data_chunks(cfg: BaseConfig):
+def get_data_chunks(cfg: VectorBaseConfig):
     # load raw data
     docs = []
     for data_path in cfg.datastorage.raw_data_dir:
@@ -98,25 +99,17 @@ def get_data_chunks(cfg: BaseConfig):
     return chunk_docs
 
 
-NER_MODELS = {
-    "medical": {
-        "model": "d4data/biomedical-ner-all",
-        "entities": ["DISEASE", "CHEMICAL", "GENE", "PROTEIN", "CELL_TYPE", "CELL_LINE"]
-    },
-    "finance": {
-        "model": "jupup/finbert-ner",
-        "entities": ["COMPANY", "ORG", "MONEY", "STOCK", "CURRENCY", "PERCENT"]
-    },
-    "science": {
-        "model": "allenai/scibert_scivocab_cased",
-        "entities": ["METHOD", "MATERIAL", "TASK", "METRIC", "GENERIC"]  # 依赖具体finetune
-    },
-    "legal": {
-        "model": "nlpaueb/legal-bert-base-uncased",
-        "entities": ["LAW", "COURT", "CASE", "STATUTE", "PERSON", "ORG"]
-    },
-    "general": {
-        "model": "dslim/bert-base-NER",
-        "entities": ["PER", "ORG", "LOC", "MISC"]
-    }
-}
+def get_llm_output_file(cfg: VectorBaseConfig):
+    model_name = os.path.basename(cfg.llm.model_name)
+    return f"outputs-{model_name}-{cfg.llm.temperature}-{cfg.llm.top_p}-{cfg.llm.max_seq_len}-{cfg.llm.max_gen_len}.json"
+
+
+def get_llm_model_hf(cfg: VectorBaseConfig):
+    tokenizer = AutoTokenizer.from_pretrained(cfg.llm.model_name)
+    generator = AutoModelForCausalLM.from_pretrained(
+        cfg.llm.model_name,
+        device_map = "auto",
+        dtype = torch.float16
+        )
+    return tokenizer, generator
+

@@ -1,11 +1,12 @@
 import re
 import os
 import json
-from configs import BaseConfig
+from typing import Union
+from configs import VectorBaseConfig, GraphBaseConfig
 from rag_components import get_llm_output_file
 
 
-def load_saved_data(cfg: BaseConfig):
+def load_saved_data(cfg: Union[VectorBaseConfig, GraphBaseConfig]):
     # if output not exist, return is question
     res_path = os.path.join(cfg.expconfig.output_dir, get_llm_output_file(cfg))
 
