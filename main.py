@@ -5,7 +5,7 @@ import torch
 import os
 import argparse
 
-
+os.environ["VLLM_USE_FLASH_ATTN"] = "0"
 
 def main():
     '''
@@ -66,5 +66,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
-

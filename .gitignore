@@ -1,6 +1,7 @@
 # GdRAG
 data/
 retrieval_stores/data/*
+Models/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
