@@ -12,4 +12,5 @@
 pip install langchain transformers sentence-transformers
 ```
 
-# 
+# 安装vllm
+

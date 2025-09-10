@@ -25,7 +25,9 @@ class gZeng24ChatDoctor(GraphBaseConfig):
         temperature = 0.6,
         top_p = 0.9,
         max_seq_len = 1024,
-        max_gen_len = 256
+        max_gen_len = 256,
+        vllm_parallel_size = 2,
+        vllm_gpu_memory_utilization = 0.9
     )
     prompt: gPromptConfig = gPromptConfig(
         suffix=["context: ", "question: ", "answer:"],

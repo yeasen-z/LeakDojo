@@ -27,6 +27,8 @@ class vEmbeddingConfig:
 class vLLMConfig:
     provider: str = "hf"  # "api" | "hf" 
     model_name: str = "meta-llama/Llama-2-7b-chat-hf"
+    vllm_parallel_size: int = 2
+    vllm_gpu_memory_utilization: float = 0.9
     temperature: float = 0.6
     top_p: float = 0.9
     max_seq_len: int = 1024
@@ -83,7 +85,9 @@ class VectorBaseConfig:
         temperature = 0.6,
         top_p = 0.9,
         max_seq_len = 1024,
-        max_gen_len = 256
+        max_gen_len = 256,
+        vllm_parallel_size = 2,
+        vllm_gpu_memory_utilization = 0.9
     )
     prompt: vPromptConfig = vPromptConfig(
         suffix=["context: ", "question: ", "answer:"],

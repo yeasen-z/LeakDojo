@@ -7,7 +7,7 @@ from langchain_community.document_loaders import TextLoader, PyPDFLoader
 from langchain.schema import Document
 from configs import VectorBaseConfig
 from langchain.text_splitter import TextSplitter, RecursiveCharacterTextSplitter
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from vllm import LLM, SamplingParams
 
 
 def get_retrieval_info(cfg: VectorBaseConfig):
@@ -104,12 +104,11 @@ def get_llm_output_file(cfg: VectorBaseConfig):
     return f"outputs-{model_name}-{cfg.llm.temperature}-{cfg.llm.top_p}-{cfg.llm.max_seq_len}-{cfg.llm.max_gen_len}.json"
 
 
-def get_llm_model_hf(cfg: VectorBaseConfig):
-    tokenizer = AutoTokenizer.from_pretrained(cfg.llm.model_name)
-    generator = AutoModelForCausalLM.from_pretrained(
-        cfg.llm.model_name,
-        device_map = "auto",
-        dtype = torch.float16
-        )
-    return tokenizer, generator
-
+def get_llm_model_hf_vllm(cfg: VectorBaseConfig):
+     # 初始化 vLLM 模型
+    llm = LLM(
+        model=cfg.llm.model_name,
+        tensor_parallel_size=cfg.llm.vllm_parallel_size,      # 多卡的话可以改大
+        gpu_memory_utilization=cfg.llm.vllm_gpu_memory_utilization,  # 控制显存利用率
+    )
+    return llm

@@ -21,11 +21,14 @@ class Zeng24ChatDoctor(VectorBaseConfig):
     llm: vLLMConfig = vLLMConfig(
         provider = "hf",  # "api" | "hf" 
         # model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/shakechen/Llama-2-7b-chat-hf",
-        model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/ydyajyA/Llama-2-13b-chat-hf",
+        # model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/ydyajyA/Llama-2-13b-chat-hf",
+        model_name = "Qwen/Qwen2.5-14B-Instruct-1M",
         temperature = 0.6,
         top_p = 0.9,
         max_seq_len = 1024,
-        max_gen_len = 256
+        max_gen_len = 256,
+        vllm_parallel_size = 1,
+        vllm_gpu_memory_utilization = 0.9
     )
     prompt: vPromptConfig = vPromptConfig(
         suffix=["context: ", "question: ", "answer:"],
