@@ -19,8 +19,6 @@ def run_llm(cfg: VectorBaseConfig, all_prompts):
     answers = []
     params = SamplingParams(
         max_tokens=cfg.llm.max_gen_len,      # 直接设生成长度
-        temperature=cfg.llm.temperature,
-        top_p=cfg.llm.top_p,
     )
     for prompt in all_prompts:
         outputs = llm.generate([prompt], params)

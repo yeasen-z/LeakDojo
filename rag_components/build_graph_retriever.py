@@ -59,7 +59,7 @@ def graph_ere_extraction_llm(chunk_docs: List[Document], cfg: GraphBaseConfig, d
         text = doc.page_content
         prompt = generate_ere_prompt(text)
         
-        response = llm.generate([prompt], sampling_params=SamplingParams(temperature=0.7, max_tokens=512)).generations[0][0].text
+        response = llm.generate([prompt]).generations[0][0].text
 
         triplets = parse_triplets_json_strict(response)
         triplets_list.append({

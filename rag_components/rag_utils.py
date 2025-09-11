@@ -101,7 +101,7 @@ def get_data_chunks(cfg: VectorBaseConfig):
 
 def get_llm_output_file(cfg: VectorBaseConfig):
     model_name = os.path.basename(cfg.llm.model_name)
-    return f"outputs-{model_name}-{cfg.llm.temperature}-{cfg.llm.top_p}-{cfg.llm.max_seq_len}-{cfg.llm.max_gen_len}.json"
+    return f"outputs-{model_name}-{cfg.llm.max_seq_len}-{cfg.llm.max_gen_len}.json"
 
 
 def get_llm_model_hf_vllm(cfg: VectorBaseConfig):

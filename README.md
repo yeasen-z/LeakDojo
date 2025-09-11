@@ -1,26 +1,27 @@
 # Green Dinosaur RAG based on LangChain
 
 ## 环境搭建
-```bash
-pip install langchain transformers sentence-transformers rouge_score fire nltk pandas joblib
-```
+一步步安装
 
 ### 安装vllm需要注意版本配对问题，目前测试了0.9.2可以使用的对应安装如下,最好不要直接安装requirements.txt
 
 ```bash
-pip install "torch==2.7.0, torchvision==0.22.0"
-pip install "vllm==0.9.2"
+pip install torch==2.7.0 torchvision==0.22.0
+pip install vllm==0.9.2
 ```
 
-需要自己编译flash_attn
+需要按以下指令安装 flash_attn
 ```bash
-pip install flash-attn==2.5.8 --no-cache-dir
+pip install flash_attn==2.5.8 --no-cache-dir --use-pep517
 ```
 
 然后安装其他的包内容:
 ```bash
-pip install fire langchain rouge_score chromadb
+pip install transformers==4.52.0
+```
 
+```bash
+pip install langchain  sentence-transformers rouge_score fire nltk pandas joblib chromadb modelscope chardet langchain_community FlagEmbedding langchain_huggingface 
 ```
 
 ## 注意事项

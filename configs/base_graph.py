@@ -82,8 +82,6 @@ class GraphBaseConfig:
     llm: gLLMConfig = gLLMConfig(
         provider = "hf",  # "api" | "hf" 
         model_name = "meta-llama/Llama-2-7b-chat-hf",
-        temperature = 0.6,
-        top_p = 0.9,
         max_seq_len = 1024,
         max_gen_len = 256,
         vllm_parallel_size = 2,
