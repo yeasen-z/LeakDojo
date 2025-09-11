@@ -5,8 +5,6 @@ import torch
 import os
 import argparse
 
-os.environ["VLLM_USE_FLASH_ATTN"] = "0"
-
 def main():
     '''
     1. 配置文件，每个方法单独实现
