@@ -1,25 +1,29 @@
 # Green Dinosaur RAG based on LangChain
 
-- data: raw data of database
-- configs: diff rags sys config file
-- rag_components: core python files
-- retrieval_stores: RAG base
-- references: baselines
-- tools: evaluation and show
-
-# 环境搭建
+## 环境搭建
 ```bash
 pip install langchain transformers sentence-transformers rouge_score fire nltk pandas joblib
 ```
 
-# 安装vllm
+### 安装vllm需要注意版本配对问题，目前测试了0.9.2可以使用的对应安装如下,最好不要直接安装requirements.txt
 
 ```bash
+pip install "torch==2.7.0, torchvision==0.22.0"
 pip install "vllm==0.9.2"
-pip install "flash_attn==2.5.8"
 ```
 
-# 注意事项
+需要自己编译flash_attn
+```bash
+pip install flash-attn==2.5.8 --no-cache-dir
+```
+
+然后安装其他的包内容:
+```bash
+pip install fire langchain rouge_score chromadb
+
+```
+
+## 注意事项
 1. 在使用qwen2.5-14B-instruct-1m进行vllm推理的时候，要在其config文件中，删除以下的设置，才能正常加载运行
     ```json
     "dual_chunk_attention_config": {
@@ -28,7 +32,9 @@ pip install "flash_attn==2.5.8"
         "original_max_position_embeddings": 262144
     }
     ```
-2. 运行的时候，尽量使用环境限制语句指定GPU id，如下
+2. vllm设置vllm_parallel_size参数的时候，一定要注意attn head数要能够被整除，否则会出错
+    - 
+3. 运行的时候，尽量使用环境限制语句指定GPU id，如下
     ```bash
         CUDA_VISIBLE_DEVICES=4,5,6,7 python main.py --mode inference
     ```
