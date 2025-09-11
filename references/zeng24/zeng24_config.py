@@ -23,13 +23,15 @@ class Zeng24ChatDoctor(VectorBaseConfig):
         # model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/shakechen/Llama-2-7b-chat-hf",
         # model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/ydyajyA/Llama-2-13b-chat-hf",
         # model_name = "./Models/qwen2.5-14B-instruct-1m",
-        # model_name = "./Models/qwen2.5-14M-instruct",
-        model_name = "./Models/Qwen2.5-0.5B-Instruct",
-        # model_name = "./Models/Qwen2.5-1.5B-Instruct",
+        # model_name = "./Models/Qwen2.5-0.5B-Instruct",
+        model_name = "./Models/Qwen2.5-1.5B-Instruct",
         # model_name = "./Models/Qwen2.5-3B-Instruct",
         # model_name = "./Models/Qwen2.5-7B-Instruct",
+        # model_name = "./Models/Qwen2.5-14B-Instruct",
         max_seq_len = 1024,
         max_gen_len = 1024,
+        temperature = 0,
+        top_p = 0.9,
         vllm_parallel_size = 4,
         vllm_gpu_memory_utilization = 0.9
     )
