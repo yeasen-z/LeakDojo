@@ -18,12 +18,12 @@ def load_saved_data(cfg: Union[VectorBaseConfig, GraphBaseConfig]):
 
     with open(os.path.join(cfg.expconfig.output_dir, 'context.json'), 'r', encoding='utf-8') as f:
         contexts = json.load(f)
-    with open(os.path.join(cfg.expconfig.output_dir, 'sources.json'), 'r', encoding='utf-8') as f:
-        sources = json.load(f)
+    with open(os.path.join(cfg.expconfig.output_dir, 'doc_ids.json'), 'r', encoding='utf-8') as f:
+        doc_ids = json.load(f)
     with open(os.path.join(cfg.expconfig.output_dir, 'question.json'), 'r', encoding='utf-8') as f:
         question = json.load(f)
 
-    return sources, outputs, contexts, question
+    return doc_ids, outputs, contexts, question
 
 
 def find_email_addresses(text):

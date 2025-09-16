@@ -5,12 +5,10 @@ class gZeng24ChatDoctor(GraphBaseConfig):
     # 只覆盖需要修改的部分
     datastorage: gDataStorageConfig = gDataStorageConfig(
         data_name="chatdoctor",
-        data_region = "medical",
         raw_data_dir = ["./data/chatdoctor"],
         ere_extract_llm = "google/flan-t5-base"  # 可换成 flan-t5-large
     )
     chunk: gChunkConfig = gChunkConfig(
-        method='by_two_line_breaks',
         params={}
     )
     embedding: gEmbeddingConfig = gEmbeddingConfig(

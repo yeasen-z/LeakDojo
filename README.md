@@ -1,5 +1,18 @@
 # Green Dinosaur RAG based on LangChain
 
+## RAG data
+使用BEIR的数据格式，即文件树为:
+
+```raw
+data_name/
+├── corpus.jsonl
+├── queries.jsonl
+└── qrels/
+    ├── dev.tsv
+    ├── test.tsv
+    └── train.tsv
+```
+
 ## 环境搭建
 一步步安装
 
@@ -38,6 +51,12 @@ pip install langchain  sentence-transformers rouge_score fire nltk pandas joblib
 3. 运行的时候，尽量使用环境限制语句指定GPU id，如下
     ```bash
         CUDA_VISIBLE_DEVICES=4,5,6,7 python main.py --mode inference
+    ```
+4. 启动vllm模型服务，使用openai的接口
+    ```bash
+        CUDA_VISIBLE_DEVICES=5,6 python -m vllm.entrypoints.openai.api_server \
+            --model ./Models/Qwen2.5-1.5B-Instruct \
+            --port 8888
     ```
 
     

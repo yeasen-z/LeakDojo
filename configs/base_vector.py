@@ -4,14 +4,12 @@ import os
 
 @dataclass
 class vDataStorageConfig:
-    data_name: str = "wikitxt"
-    data_region: str = "general" # "general" | "medical" | "finance" | "science" | "legal"
+    data_name: str = "chatdoctor"
     raw_data_dir: List[str] = field(default_factory=List)
     tool: str = "vector-chroma"  # # "vector-chroma"
 
 @dataclass
 class vChunkConfig:
-    method: str = "recursive"  # recursive | by_two_line_breaks | by_single_file
     params: Dict[str, Any] = field(default_factory=lambda: {
         "chunk_size": 1000,
         "chunk_overlap": 200
@@ -62,13 +60,11 @@ class vExpConfig:
 @dataclass
 class VectorBaseConfig:
     datastorage: vDataStorageConfig = vDataStorageConfig(
-        data_name = "wikitxt",
-        data_region = "general",
-        raw_data_dir = ["./data/wikitxt"],
+        data_name = "chatdoctor",
+        raw_data_dir = ["./data/chatdoctor"],
         tool = "vector-chroma"
     )
     chunk: vChunkConfig = vChunkConfig(
-        method = 'recursive',
         params = {
             "chunk_size": 1000,
             "chunk_overlap": 200

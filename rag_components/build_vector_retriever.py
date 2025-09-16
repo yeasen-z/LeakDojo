@@ -112,10 +112,10 @@ def vector_retrieved_contexts(cfg: VectorBaseConfig, query: List[str], retriever
     using the as_retriever() interface.
     return the united context and the sources.
         - context: List[str], the united context for each query
-        - sources: List[List[str]], the sources for each query, which is a list of list of sources
+        - doc_ids: List[List[str]], the sources for each query, which is a list of list of sources
     '''
     context=[]
-    sources=[]
+    doc_ids=[]
 
     if cfg.retrieval.rerank:
         # rerank the documents based on similarity score
@@ -128,14 +128,18 @@ def vector_retrieved_contexts(cfg: VectorBaseConfig, query: List[str], retriever
 
         if cfg.retrieval.rerank:
             pairs = [(q, con.page_content) for con in docs]
-            scores = reranker.compute_score(pairs)
-            reranked_docs = [doc for doc, score in sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)]
+            if pairs and len(pairs) > 0:
+                scores = reranker.compute_score(pairs)
+                reranked_docs = [doc for doc, score in sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)]
+            else:
+                reranked_docs = docs
+                print("Warning: No documents retrieved for the query.", q)
 
         if join_adhesive:
             context.append(cfg.retrieval.adhesive.join([doc.page_content for doc in reranked_docs]))
         else:
             context.append([doc.page_content for doc in reranked_docs])
 
-        sources.append([doc.metadata.get("source", "unknown") for doc in reranked_docs])
+        doc_ids.append([doc.metadata.get("doc_id", "unknown") for doc in reranked_docs])
 
-    return context, sources
+    return context, doc_ids

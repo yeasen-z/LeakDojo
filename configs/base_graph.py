@@ -5,13 +5,11 @@ import os
 @dataclass
 class gDataStorageConfig:
     data_name: str = "wikitxt"
-    data_region: str = "general" # "general" | "medical" | "finance" | "science" | "legal"
     raw_data_dir: List[str] = field(default_factory=List)
     ere_extract_llm: str = "Qwen/Qwen2.5-14B-Instruct-1M"
 
 @dataclass
 class gChunkConfig:
-    method: str = "recursive"  # recursive | by_two_line_breaks | by_single_file
     params: Dict[str, Any] = field(default_factory=lambda: {
         "chunk_size": 1000,
         "chunk_overlap": 200
@@ -62,13 +60,11 @@ class gExpConfig:
 @dataclass
 class GraphBaseConfig:
     datastorage: gDataStorageConfig = gDataStorageConfig(
-        data_name = "wikitxt",
-        data_region = "general",
-        raw_data_dir = ["./data/wikitxt"],
+        data_name = "chatdoctor",
+        raw_data_dir = ["./data/chatdoctor"],
         ere_extract_llm = "Qwen/Qwen-7B-Chat"
     )
     chunk: gChunkConfig = gChunkConfig(
-        method = 'recursive',
         params = {
             "chunk_size": 1000,
             "chunk_overlap": 200

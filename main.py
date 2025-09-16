@@ -18,7 +18,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--mode", choices=["inference", "evaluation"], required=True,
+        "--mode", choices=["inference", "evaluation", "build_data"], required=True,
         help="Choose whether to run inference or evaluation"
     )
     args = parser.parse_args()
@@ -40,25 +40,33 @@ def main():
         prompts = get_prompts(cfg, retriver, questions, device=device)
 
         answers = run_llm(cfg, prompts)
+    
+    elif args.mode == "build_data":
+        # 保存文件的目录
+        if not os.path.exists(cfg.expconfig.output_dir):
+            os.makedirs(cfg.expconfig.output_dir,exist_ok=True)
+
+        # 构建向量数据库
+        _ = vector_retriever(cfg, retrival_database_batch_size=512, device=device, force_rebuild=True)
 
     elif args.mode == "evaluation":
         # Run evaluation
-        sources, outputs, contexts, question = load_saved_data(cfg)
+        doc_ids, outputs, contexts, question = load_saved_data(cfg)
         question_num = len(question)
         print(f"Total question num: {question_num}")
-        hit_public, hit_private = eva_pub_pri_hitnum(sources)
+        hit_public, hit_private = eva_pub_pri_hitnum(doc_ids)
         print(f"Public hit num: {sum(hit_public)}, Private hit num: {sum(hit_private)}")
 
-        num_effective_prompt, avg_effective_length, num_extract_context = eva_repeat_context(sources, outputs, contexts)
+        num_effective_prompt, avg_effective_length, num_extract_context = eva_repeat_context(doc_ids, outputs, contexts)
         print(f"Total effective prompt num: {num_effective_prompt},  Average extracted context length: {avg_effective_length}, Extract context num: {num_extract_context}")
 
-        num_effective_prompt, num_extract_context = eva_rouge(sources, outputs, contexts)
+        num_effective_prompt, num_extract_context = eva_rouge(doc_ids, outputs, contexts)
         print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}")
 
-        num_effective_prompt, num_extract_context = eva_bleu(sources, outputs, contexts)
+        num_effective_prompt, num_extract_context = eva_bleu(doc_ids, outputs, contexts)
         print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}")
 
-        num_effective_prompt, num_extract_context, avg_max_sim, avg_mean_sim = eva_embedding_similarity(sources, outputs, contexts, embed_model=vector_embed_model(cfg, device=device), device=device)
+        num_effective_prompt, num_extract_context, avg_max_sim, avg_mean_sim = eva_embedding_similarity(doc_ids, outputs, contexts, embed_model=vector_embed_model(cfg, device=device), device=device)
         print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}, Average max embedding similarity: {avg_max_sim}, Average mean embedding similarity: {avg_mean_sim}")
 
 
