@@ -76,8 +76,8 @@ class Zeng24fiqa(VectorBaseConfig):
         # model_name = "./Models/Qwen2.5-14B-Instruct",
         max_seq_len = 1024,
         max_gen_len = 1024,
-        temperature = 0.7,
-        top_p = 0.8,
+        temperature = 0,
+        top_p = 1,
         vllm_parallel_size = 2,
         vllm_gpu_memory_utilization = 0.9
     )

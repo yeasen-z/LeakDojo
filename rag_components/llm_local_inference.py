@@ -15,7 +15,7 @@ def summarization():
 
 
 def run_llm(cfg: VectorBaseConfig, all_prompts):
-    client = OpenAI(base_url="http://localhost:8889/v1", api_key="EMPTY")
+    client = OpenAI(base_url="http://localhost:8888/v1", api_key="EMPTY")
 
     answers = []
 

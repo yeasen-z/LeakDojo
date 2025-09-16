@@ -93,6 +93,18 @@ def get_queries(cfg: VectorBaseConfig, suffix: str):
                 queries.append(doc["text"] + suffix)
     return queries
 
+def get_queries_id(cfg: VectorBaseConfig):
+    # load queries in beir format
+    data_paths = []  # add multiple dataset
+    for path in cfg.datastorage.raw_data_dir:
+        data_paths.append(os.path.join(path, "queries.jsonl"))
+    queries_id = []
+    for data_path in data_paths:
+        with open(data_path, "r", encoding="utf-8") as f:
+            for line in f:
+                doc = json.loads(line)
+                queries_id.append(doc["_id"])
+    return queries_id
 
 def get_llm_output_file(cfg: VectorBaseConfig):
     model_name = os.path.basename(cfg.llm.model_name)

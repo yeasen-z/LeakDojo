@@ -279,6 +279,9 @@ def eva_embedding_similarity(sources, outputs, contexts, embed_model, threshold=
         out_emb = output_embs[i].unsqueeze(0)  # (1, dim)
         ctx_embs = context_embs_flat[start:end]  # (num_ctx, dim)
 
+        if ctx_embs.size(0) == 0:   # 🔥 跳过空 context
+            continue
+        
         sims = F.cosine_similarity(out_emb, ctx_embs)  # (num_ctx,)
 
         all_max_sims.append(sims.max().item())

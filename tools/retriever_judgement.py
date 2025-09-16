@@ -42,7 +42,7 @@ def average_precision(true_rels, pred_scores, k=10):
     return score / total_rel if total_rel > 0 else 0.0
 
 
-def evaluate(qrels, results, k=10):
+def evaluate_retriever(qrels, results, k=10):
     ndcg, _map, recall, precision = [], [], [], []
     for qid in qrels:
         if qid not in results:

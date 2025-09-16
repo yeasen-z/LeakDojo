@@ -1,6 +1,8 @@
 import re
 import os
 import json
+import pandas as pd
+from collections import defaultdict
 from typing import Union
 from configs import VectorBaseConfig, GraphBaseConfig
 from rag_components import get_llm_output_file
@@ -52,6 +54,52 @@ def find_urls(text):
     return urls
 
 
+def load_qrels(path_tsv):
+    """
+    读取 qrels (train/dev/test) 文件
+    输出: {qid: {docid: relevance}}
+    """
+    df = pd.read_csv(path_tsv, sep="\t", names=["qid", "docid", "score"], header=0)
+    qrels = defaultdict(dict)
+    for row in df.itertuples(index=False):
+        qrels[str(row.qid)][str(row.docid)] = int(row.score)
+    return dict(qrels)
+
+
+def load_queries(path_jsonl, qrels):
+    """
+    从 queries.jsonl 里筛选出对应 split 的 queries
+    输入:
+        path_jsonl: queries.jsonl 文件路径
+        qrels: 来自 load_qrels 的字典
+    输出:
+        {qid: query_text}
+    """
+    queries = {}
+    with open(path_jsonl, "r", encoding="utf-8") as f:
+        for line in f:
+            obj = json.loads(line)
+            qid = str(obj["_id"])
+            if qid in qrels:   # 只保留 qrels 中出现的 qid
+                queries[qid] = obj["text"]
+    return queries
+
+
+def load_split(path_queries, path_qrels):
+    """
+    综合 loader，一次性返回 (queries, qrels)
+    """
+    qrels = load_qrels(path_qrels)
+    queries = load_queries(path_queries, qrels)
+    return queries, qrels
+
+def get_beir_test_results(results, qrels):
+    """
+    只保留 results 中出现在 qrels 里的 query-id
+    """
+    return {qid: results[qid] for qid in results if qid in qrels}
+
+
 public_ragfile_list=["wikitxt"]
 
 pii_func_map = {
@@ -61,3 +109,7 @@ pii_func_map = {
 }
 
 pii_check_list=["email", "phone", "url"] # 需要检测的敏感信息类型
+
+
+
+
