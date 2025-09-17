@@ -30,8 +30,8 @@ def vector_embed_model(cfg: VectorBaseConfig,
             embed_model = HuggingFaceEmbeddings(
                 model_name=cfg.embedding.model_dir,
                 model_kwargs={'device': device},
-                encode_kwargs={'device': device, 'batch_size': retrival_database_batch_size},
-            )
+                encode_kwargs={'device': device, 'batch_size': retrival_database_batch_size,"normalize_embeddings": True}
+                )
         except cfg.embedding.model_dir:
             raise Exception(f"Encoder {cfg.embedding.model_dir} not found, please check.")
     

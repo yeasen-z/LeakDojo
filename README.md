@@ -58,7 +58,8 @@ pip install langchain  sentence-transformers rouge_score fire nltk pandas joblib
             --model ./Models/Qwen2.5-32B-Instruct \
             --port 8888 \
             --tensor-parallel-size 4 \
-            --dtype auto
+            --dtype auto \
+            --gpu-memory-utilization 0.7
     ```
 
     

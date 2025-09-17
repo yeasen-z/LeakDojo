@@ -22,8 +22,8 @@ class Zeng24ChatDoctor(VectorBaseConfig):
         # model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/ydyajyA/Llama-2-13b-chat-hf",
         # model_name = "./Models/qwen2.5-14B-instruct-1m",
         # model_name = "./Models/Qwen2.5-0.5B-Instruct",
-        model_name = "./Models/Qwen2.5-1.5B-Instruct",
-        # model_name = "./Models/Qwen2.5-3B-Instruct",
+        # model_name = "./Models/Qwen2.5-1.5B-Instruct",
+        model_name = "./Models/Qwen2.5-3B-Instruct",
         # model_name = "./Models/Qwen2.5-7B-Instruct",
         # model_name = "./Models/Qwen2.5-14B-Instruct",
         # model_name = "./Models/Qwen2.5-32B-Instruct",
@@ -72,9 +72,10 @@ class Zeng24fiqa(VectorBaseConfig):
         # model_name = "./Models/qwen2.5-14B-instruct-1m",
         # model_name = "./Models/Qwen2.5-0.5B-Instruct",
         # model_name = "./Models/Qwen2.5-1.5B-Instruct",
-        model_name = "./Models/Qwen2.5-3B-Instruct",
+        # model_name = "./Models/Qwen2.5-3B-Instruct",
         # model_name = "./Models/Qwen2.5-7B-Instruct",
-        # model_name = "./Models/Qwen2.5-14B-Instruct",
+        model_name = "./Models/Qwen2.5-14B-Instruct",
+        # model_name = "./Models/Qwen2.5-32B-Instruct",
         max_seq_len = 1024,
         max_gen_len = 1024,
         temperature = 0,
@@ -99,11 +100,11 @@ class Zeng24fiqa(VectorBaseConfig):
 
 
 @dataclass
-class Zeng24msmarco(VectorBaseConfig):
+class Zeng24nq(VectorBaseConfig):
     # 只覆盖需要修改的部分
     datastorage: vDataStorageConfig = vDataStorageConfig(
-        data_name="msmarco",
-        raw_data_dir = ["./data/msmarco"],
+        data_name="nq",
+        raw_data_dir = ["./data/nq"],
         tool = "vector-chroma"
     )
     chunk: vChunkConfig = vChunkConfig(
