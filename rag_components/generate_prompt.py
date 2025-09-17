@@ -3,7 +3,6 @@ from langchain.schema import BaseRetriever
 import json
 import os
 
-
 from configs import VectorBaseConfig
 from .build_vector_retriever import vector_retrieved_contexts
 

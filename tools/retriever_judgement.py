@@ -1,5 +1,4 @@
 import math
-from collections import defaultdict
 
 def dcg(relevances):
     """计算 DCG"""

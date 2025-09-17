@@ -47,7 +47,7 @@ def main():
             os.makedirs(cfg.expconfig.output_dir,exist_ok=True)
 
         # 构建向量数据库
-        _ = vector_retriever(cfg, retrival_database_batch_size=512, device=device, force_rebuild=True)
+        _ = vector_retriever(cfg, retrival_database_batch_size=512, device=device, force_rebuild=False)
 
     elif args.mode == "evaluation":
         # Run evaluation

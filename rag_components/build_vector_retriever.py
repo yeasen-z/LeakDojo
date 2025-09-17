@@ -1,14 +1,9 @@
 from typing import List
-from chardet.universaldetector import UniversalDetector
 import os
 import torch
 import shutil
 
-from langchain_community.document_loaders import TextLoader, PyPDFLoader
-from langchain.schema import Document
-
 from langchain.schema import BaseRetriever
-from sentence_transformers import SentenceTransformer, util
 
 from FlagEmbedding import FlagReranker
 

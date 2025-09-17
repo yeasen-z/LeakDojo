@@ -1,11 +1,8 @@
-from references import zeng24_config, zeng24_question
-from rag_components import vector_retriever, get_prompts, vector_retrieved_contexts, run_llm, vector_embed_model, get_queries, get_queries_id
+from references import zeng24_config
+from rag_components import vector_embed_model, get_queries_id
 from tools import load_saved_data, load_split, evaluate_retriever, get_beir_test_results
-
 import torch
 import os
-import argparse
-
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from tqdm import tqdm

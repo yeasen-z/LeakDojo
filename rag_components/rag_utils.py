@@ -2,7 +2,6 @@ from typing import List, Dict
 import os
 from langchain.schema import Document
 from configs import VectorBaseConfig
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 import json
 
 def get_retrieval_info(cfg: VectorBaseConfig):
