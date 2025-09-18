@@ -62,4 +62,3 @@ pip install langchain  sentence-transformers rouge_score fire nltk pandas joblib
             --gpu-memory-utilization 0.7
     ```
 
-    

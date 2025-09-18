@@ -106,6 +106,7 @@ class VectorBaseConfig:
         llm = os.path.basename(self.llm.model_name).replace(".","_")             # Llama-2-13b-chat-hf
         k = self.retrieval.params.get("k", 2)                                    # 2
         retrieved_method = self.retrieval.method
+        reranker = self.retrieval.rerank if self.retrieval.rerank else "no-rerank"
 
-        save_dir = f"./exp/{dataset}/{store}/{embed}-{llm}/{retrieved_method}-{k}/"
+        save_dir = f"./exp/{dataset}/{store}/{embed}-{llm}/{retrieved_method}-{k}-{reranker}/"
         return vExpConfig(output_dir=save_dir)

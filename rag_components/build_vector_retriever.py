@@ -129,6 +129,8 @@ def vector_retrieved_contexts(cfg: VectorBaseConfig, query: List[str], retriever
             else:
                 reranked_docs = docs
                 print("Warning: No documents retrieved for the query.", q)
+        else:
+            reranked_docs = docs
 
         if join_adhesive:
             context.append(cfg.retrieval.adhesive.join([doc.page_content for doc in reranked_docs]))

@@ -18,7 +18,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--mode", choices=["inference", "evaluation", "build_data"], required=True,
+        "--mode", choices=["inference", "evaluation", "build_data", "infer_eva"], required=True,
         help="Choose whether to run inference or evaluation"
     )
     args = parser.parse_args()
@@ -66,12 +66,53 @@ def main():
         num_effective_prompt, num_extract_context = eva_rouge(doc_ids, outputs, contexts)
         print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}")
 
+        num_effective_prompt, num_extract_context = eva_rouge(doc_ids, outputs, contexts, threshold=0.8)
+        print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}")
+
         # num_effective_prompt, num_extract_context = eva_bleu(doc_ids, outputs, contexts)
         # print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}")
 
         num_effective_prompt, num_extract_context, avg_max_sim, avg_mean_sim = eva_embedding_similarity(doc_ids, outputs, contexts, embed_model=vector_embed_model(cfg, device=device), device=device)
         print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}, Average max embedding similarity: {avg_max_sim}, Average mean embedding similarity: {avg_mean_sim}")
 
+    elif args.mode == "infer_eva":
+        # Run inference and evaluation
+        # 保存文件的目录
+        if not os.path.exists(cfg.expconfig.output_dir):
+            os.makedirs(cfg.expconfig.output_dir,exist_ok=True)
+
+        questions = zeng24_question.get_question(**zeng24_question.zeng24_chatdoctor_q)
+            
+        retriver = vector_retriever(cfg, retrival_database_batch_size=512, device=device, force_rebuild=False)
+
+        prompts = get_prompts(cfg, retriver, questions, device=device)
+
+        answers = run_llm(cfg, prompts)
+        
+        # Run evaluation
+        doc_ids, outputs, contexts, question = load_saved_data(cfg)
+        question_num = len(question)
+        print(f"Total question num: {question_num}")
+        
+        contexts_count = 0
+        for sublist in contexts:
+            contexts_count += len(sublist)
+        print(f"Total context num: {contexts_count}, Average context num per question: {contexts_count/question_num}")
+
+        num_effective_prompt, avg_effective_length, num_extract_context = eva_repeat_context(doc_ids, outputs, contexts)
+        print(f"Total effective prompt num: {num_effective_prompt},  Average extracted context length: {avg_effective_length}, Extract context num: {num_extract_context}")
+
+        num_effective_prompt, num_extract_context = eva_rouge(doc_ids, outputs, contexts)
+        print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}")
+
+        num_effective_prompt, num_extract_context = eva_rouge(doc_ids, outputs, contexts, threshold=0.8)
+        print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}")
+
+        # num_effective_prompt, num_extract_context = eva_bleu(doc_ids, outputs, contexts)
+        # print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}")
+
+        num_effective_prompt, num_extract_context, avg_max_sim, avg_mean_sim = eva_embedding_similarity(doc_ids, outputs, contexts, embed_model=vector_embed_model(cfg, device=device), device=device)
+        print(f"Num of effective prompt: {num_effective_prompt}, Extract context num: {num_extract_context}, Average max embedding similarity: {avg_max_sim}, Average mean embedding similarity: {avg_mean_sim}")
 
 if __name__ == "__main__":
     main()
