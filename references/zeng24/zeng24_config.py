@@ -193,8 +193,9 @@ class Zeng24scifact(VectorBaseConfig):
         adhesive="\n"
     )
     retrieval: vRetrievalConfig = vRetrievalConfig(
-        method="similarity_score_threshold",
-        # rerank = 'BAAI/bge-reranker-large',
+        # method="similarity_score_threshold",
+        method="mmr",
+        rerank = 'BAAI/bge-reranker-large',
         rerank = None,
         adhesive = "\n\n",
         params={

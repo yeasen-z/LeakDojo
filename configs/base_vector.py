@@ -47,7 +47,8 @@ class vRetrievalConfig:
     rerank: str = 'BAAI/bge-reranker-large'
     adhesive: str = "\n\n"
     params: Dict[str, Any] = field(default_factory=lambda: {
-        "k": 2,
+        "k": 10,
+        "n": 3,
         "score_threshold": 0.75
     })
 
@@ -92,7 +93,8 @@ class VectorBaseConfig:
         rerank = None,
         adhesive = "\n\n",
         params = {
-            "k": 2,
+            "k": 10,
+            "n": 3,
             "fetch_k": 40
         }
     )

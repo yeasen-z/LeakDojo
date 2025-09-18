@@ -125,12 +125,12 @@ def vector_retrieved_contexts(cfg: VectorBaseConfig, query: List[str], retriever
             pairs = [(q, con.page_content) for con in docs]
             if pairs and len(pairs) > 0:
                 scores = reranker.compute_score(pairs)
-                reranked_docs = [doc for doc, score in sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)]
+                reranked_docs = [doc for doc, score in sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)][0:cfg.retrieval.params.get("n", 3)]
             else:
-                reranked_docs = docs
+                reranked_docs = docs[0:cfg.retrieval.params.get("n", 3)]
                 print("Warning: No documents retrieved for the query.", q)
         else:
-            reranked_docs = docs
+            reranked_docs = docs[0:cfg.retrieval.params.get("n", 3)]
 
         if join_adhesive:
             context.append(cfg.retrieval.adhesive.join([doc.page_content for doc in reranked_docs]))
