@@ -20,12 +20,14 @@ data_name/
 
 ```bash
 pip install torch==2.7.0 torchvision==0.22.0
+pip install regex
 pip install vllm==0.9.2
 ```
 
 需要按以下指令安装 flash_attn
 ```bash
-pip install flash_attn==2.5.8 --no-cache-dir --use-pep517
+# pip install flash_attn==2.5.8 --no-cache-dir --use-pep517
+pip install flash_attn==2.7.1 --no-cache-dir --use-pep517
 ```
 
 然后安装其他的包内容:
