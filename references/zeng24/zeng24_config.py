@@ -27,8 +27,8 @@ class Zeng24ChatDoctor(VectorBaseConfig):
         # model_name = "./Models/Qwen2.5-7B-Instruct",
         # model_name = "./Models/Qwen2.5-14B-Instruct",
         # model_name = "./Models/Qwen2.5-32B-Instruct",
-        # model_name = "./Models/gemma-3-1b-it"
-        model_name = "./Models/gemma-3-4b-it",
+        # model_name = "./Models/gemma-3-1b-it",
+        model_name = "./Models/gemma-3-27b-it",
         max_seq_len = 1024,
         max_gen_len = 1024,
         temperature = 0,
@@ -46,6 +46,7 @@ class Zeng24ChatDoctor(VectorBaseConfig):
         adhesive = "\n\n",
         params={
             "k": 3,
+            "n": 3,
             "score_threshold": 0.5
         }
     )
@@ -78,7 +79,8 @@ class Zeng24fiqa(VectorBaseConfig):
         # model_name = "./Models/Qwen2.5-7B-Instruct",
         # model_name = "./Models/Qwen2.5-14B-Instruct",
         # model_name = "./Models/Qwen2.5-32B-Instruct",
-        model_name = "./Models/gemma-3-1b-it",
+        model_name = "./Models/gemma-3-4b-it",
+        # model_name = "./Models/gemma-3-27b-it",
         max_seq_len = 1024,
         max_gen_len = 1024,
         temperature = 0,
@@ -96,6 +98,7 @@ class Zeng24fiqa(VectorBaseConfig):
         adhesive = "\n\n",
         params={
             "k": 3,
+            "n": 3,
             "score_threshold": 0.5
         }
     )
@@ -147,6 +150,7 @@ class Zeng24nq(VectorBaseConfig):
         adhesive = "\n\n",
         params={
             "k": 3,
+            "n": 3,
             "score_threshold": 0.5
         }
     )
@@ -166,8 +170,10 @@ class Zeng24scifact(VectorBaseConfig):
     )
     embedding: vEmbeddingConfig = vEmbeddingConfig(
         provider="hf",
-        model_name = "bge-large-en-v1.5",
-        model_dir = "BAAI/bge-large-en-v1.5"
+        # model_name = "bge-large-en-v1.5",
+        # model_dir = "BAAI/bge-large-en-v1.5"
+        model_name = "all-mpnet-base-v2",
+        model_dir = "sentence-transformers/all-mpnet-base-v2"
     )
     llm: vLLMConfig = vLLMConfig(
         provider = "hf",  # "api" | "hf" 
@@ -193,15 +199,26 @@ class Zeng24scifact(VectorBaseConfig):
         adhesive="\n"
     )
     retrieval: vRetrievalConfig = vRetrievalConfig(
-        # method="similarity_score_threshold",
-        method="mmr",
-        rerank = 'BAAI/bge-reranker-large',
-        rerank = None,
+        method="similarity_score_threshold",
+        # rerank = 'BAAI/bge-reranker-large',
+        rerank = "cross-encoder/ms-marco-MiniLM-L6-v2",
+        # rerank = None,
         adhesive = "\n\n",
         params={
             "k": 3,
-            "score_threshold": 0.5
-        }
+            "n": 3,
+            "score_threshold": 0.1
+        },
+        # method = "mmr",
+        # # rerank = 'BAAI/bge-reranker-large',
+        # rerank = "cross-encoder/ms-marco-MiniLM-L6-v2",
+        # # rerank = None,
+        # adhesive = "\n\n",
+        # params = {
+        #     "k": 3,
+        #     "n": 3,
+        #     "fetch_k": 40
+        # }
     )
 
 
@@ -250,6 +267,7 @@ class Zeng24arguana(VectorBaseConfig):
         adhesive = "\n\n",
         params={
             "k": 3,
+            "n": 3,
             "score_threshold": 0.5
         }
     )

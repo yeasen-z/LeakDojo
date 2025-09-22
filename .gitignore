@@ -4,6 +4,7 @@ retrieval_stores/data/*
 Models/
 exp/*
 exp_old/*
+logs/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

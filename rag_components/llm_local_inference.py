@@ -16,8 +16,7 @@ def summarization():
 
 
 def run_llm(cfg: VectorBaseConfig, all_prompts):
-    client = OpenAI(base_url="http://localhost:8899/v1", api_key="EMPTY")
-
+    client = OpenAI(base_url="http://localhost:22999/v1", api_key="EMPTY")
 
     def call_api(prompt):
         response = client.chat.completions.create(

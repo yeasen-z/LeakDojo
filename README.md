@@ -27,7 +27,7 @@ pip install vllm==0.9.2
 需要按以下指令安装 flash_attn
 ```bash
 # pip install flash_attn==2.5.8 --no-cache-dir --use-pep517
-pip install flash_attn==2.7.1 --no-cache-dir --use-pep517
+pip install flash_attn==2.7.3 --no-cache-dir
 ```
 
 然后安装其他的包内容:
@@ -57,10 +57,12 @@ pip install langchain  sentence-transformers rouge_score fire nltk pandas joblib
 4. 启动vllm模型服务，使用openai的接口
     ```bash
         CUDA_VISIBLE_DEVICES=3,4,5,6 python -m vllm.entrypoints.openai.api_server \
-            --model ./Models/Qwen2.5-32B-Instruct \
+            --model ./Models/Qwen2.5-14B-Instruct \
             --port 8888 \
-            --tensor-parallel-size 4 \
+            --tensor-parallel-size 2 \
             --dtype auto \
             --gpu-memory-utilization 0.7
     ```
-
+5. 在slurm上启动vllm服务
+    - 查看scripts中的脚本
+    - 如果遇到查询不到slurm命令，那么运行"bash -l"

@@ -2,6 +2,7 @@ from typing import List
 import os
 import torch
 import shutil
+from functools import partial
 
 from langchain.schema import BaseRetriever
 
@@ -12,6 +13,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 
 from langchain_community.vectorstores import Chroma
 from langchain_community.vectorstores import FAISS
+from langchain_community.retrievers import BM25Retriever
 
 from configs import VectorBaseConfig
 from .rag_utils import get_retrieval_info, get_data_chunks
@@ -53,7 +55,8 @@ def vector_chroma_database(cfg: VectorBaseConfig, retrieval_store_path: str, ret
         retrieval_database = Chroma.from_documents(
             documents=chunk_docs,
             embedding=embed_model,
-            persist_directory=retrieval_store_path
+            persist_directory=retrieval_store_path,
+            collection_metadata={"hnsw:space": "cosine"}
         )
 
     return retrieval_database
@@ -92,6 +95,9 @@ def vector_retriever(cfg: VectorBaseConfig, force_rebuild: bool = False, retriva
                             'fetch_k': cfg.retrieval.params.get("fetch_k", 8)}  # get k, default 4
             )
         print(f"Retriever of {cfg.retrieval.method} is ready.")
+    elif cfg.retrieval.method == 'BM25':
+        docs = get_data_chunks(cfg)
+        retriever: BaseRetriever = BM25Retriever.from_documents(docs, k=cfg.retrieval.params.get("k", 4))
 
     print(f"Retriever of {cfg.datastorage.tool} is ready.")
 
@@ -116,10 +122,15 @@ def vector_retrieved_contexts(cfg: VectorBaseConfig, query: List[str], retriever
         # rerank the documents based on similarity score
         reranker = FlagReranker(cfg.retrieval.rerank, devices=device, use_fp16=True)
 
+    if cfg.retrieval.method == 'BM25':
+        re_get_docs = retriever.get_relevant_documents
+    else:
+        re_get_docs = retriever.invoke
 
     # docs = retriever.batch(query)
     for q in query:
-        docs = retriever.invoke(q)
+        # docs = retriever.invoke(q)
+        docs = re_get_docs(q)
 
         if cfg.retrieval.rerank:
             pairs = [(q, con.page_content) for con in docs]
