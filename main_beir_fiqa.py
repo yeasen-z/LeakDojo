@@ -21,7 +21,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--mode", choices=["inference", "evaluation", "build_data", "get_prompts","infer_eva"], required=True,
+        "--mode", choices=["inference", "evaluation", "build_data", "get_prompts","infer_eva"], default="infer_eva",
         help="Choose whether to run inference or evaluation"
     )
     args = parser.parse_args()

@@ -122,15 +122,15 @@ def vector_retrieved_contexts(cfg: VectorBaseConfig, query: List[str], retriever
         # rerank the documents based on similarity score
         reranker = FlagReranker(cfg.retrieval.rerank, devices=device, use_fp16=True)
 
-    if cfg.retrieval.method == 'BM25':
-        re_get_docs = retriever.get_relevant_documents
-    else:
-        re_get_docs = retriever.invoke
+    # if cfg.retrieval.method == 'BM25':
+    #     re_get_docs = retriever.get_relevant_documents
+    # else:
+    #     re_get_docs = retriever.invoke
 
     # docs = retriever.batch(query)
     for q in query:
-        # docs = retriever.invoke(q)
-        docs = re_get_docs(q)
+        docs = retriever.invoke(q)
+        # docs = re_get_docs(q)
 
         if cfg.retrieval.rerank:
             pairs = [(q, con.page_content) for con in docs]

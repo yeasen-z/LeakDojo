@@ -28,7 +28,9 @@ class Zeng24ChatDoctor(VectorBaseConfig):
         # model_name = "./Models/Qwen2.5-14B-Instruct",
         # model_name = "./Models/Qwen2.5-32B-Instruct",
         # model_name = "./Models/gemma-3-1b-it",
-        model_name = "./Models/gemma-3-27b-it",
+        # model_name = "./Models/gemma-3-27b-it",
+        model_name= "./Models/Qwen3-4B",
+        reasoning = True,
         max_seq_len = 1024,
         max_gen_len = 1024,
         temperature = 0,
@@ -65,11 +67,15 @@ class Zeng24fiqa(VectorBaseConfig):
     )
     embedding: vEmbeddingConfig = vEmbeddingConfig(
         provider="hf",
+        # model_name = "all-MiniLM-L6-v2",
+        # model_dir = "./Models/all-MiniLM-L6-v2",
+        # model_name = "all-mpnet-base-v2",
+        # model_dir = "./Models/all-mpnet-base-v2",
         model_name = "bge-large-en-v1.5",
-        model_dir = "BAAI/bge-large-en-v1.5"
+        model_dir = "./Models/BAAI-bge-large-en-v1.5"
     )
     llm: vLLMConfig = vLLMConfig(
-        provider = "hf",  # "api" | "hf" 
+        provider = "hf",  # "api" | "hf"
         # model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/shakechen/Llama-2-7b-chat-hf",
         # model_name = "/mnt/data1/workplace/zms/Models/modelscope_cache/models/ydyajyA/Llama-2-13b-chat-hf",
         # model_name = "./Models/qwen2.5-14B-instruct-1m",
@@ -77,12 +83,14 @@ class Zeng24fiqa(VectorBaseConfig):
         # model_name = "./Models/Qwen2.5-1.5B-Instruct",
         # model_name = "./Models/Qwen2.5-3B-Instruct",
         # model_name = "./Models/Qwen2.5-7B-Instruct",
-        # model_name = "./Models/Qwen2.5-14B-Instruct",
+        model_name = "./Models/Qwen2.5-14B-Instruct",
         # model_name = "./Models/Qwen2.5-32B-Instruct",
-        model_name = "./Models/gemma-3-4b-it",
+        # model_name = "./Models/gemma-3-12b-it",
         # model_name = "./Models/gemma-3-27b-it",
-        max_seq_len = 1024,
-        max_gen_len = 1024,
+        # model_name= "./Models/Qwen3-32B",
+        reasoning = True,
+        max_seq_len = 4096,
+        max_gen_len = 4096,
         temperature = 0,
         top_p = 1,
         vllm_parallel_size = 2,
@@ -93,6 +101,19 @@ class Zeng24fiqa(VectorBaseConfig):
         adhesive="\n"
     )
     retrieval: vRetrievalConfig = vRetrievalConfig(
+        # method="mmr",
+        # # method="BM25",
+        # rerank = 'BAAI/bge-reranker-large',
+        # # rerank = "./Models/ms-marco-TinyBERT-L2-v2",
+        # # rerank = "./Models/ms-marco-MiniLM-L6-v2",
+        # # rerank=None,
+        # adhesive = "\n\n",
+        # params={
+        #     "k": 10,
+        #     "n": 3,
+        #     "fetch_k": 40
+        # }
+
         method="similarity_score_threshold",
         rerank = 'BAAI/bge-reranker-large',
         adhesive = "\n\n",

@@ -25,6 +25,7 @@ class vEmbeddingConfig:
 class vLLMConfig:
     provider: str = "hf"  # "api" | "hf" 
     model_name: str = "meta-llama/Llama-2-7b-chat-hf"
+    reasoning: bool = False
     vllm_parallel_size: int = 1
     vllm_gpu_memory_utilization: float = 0.9
     temperature: float = 0.6
@@ -79,6 +80,7 @@ class VectorBaseConfig:
     llm: vLLMConfig = vLLMConfig(
         provider = "hf",  # "api" | "hf" 
         model_name = "meta-llama/Llama-2-7b-chat-hf",
+        reasoning = False,
         max_seq_len = 1024,
         max_gen_len = 256,
         vllm_parallel_size = 2,

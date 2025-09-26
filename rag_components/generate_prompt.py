@@ -6,6 +6,12 @@ import os
 from configs import VectorBaseConfig
 from .build_vector_retriever import vector_retrieved_contexts
 
+def query_rewriter(cfg: VectorBaseConfig, question: str, device: str) -> str:
+    '''
+    Use LLM to rewrite the query, currently not used.
+    '''
+    # TO DO
+    return question
 
 def get_prompts(cfg: VectorBaseConfig, retriever: BaseRetriever, questions: List[str], device: str) -> List[str]:
     '''

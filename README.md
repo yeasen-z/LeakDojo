@@ -36,7 +36,7 @@ pip install transformers==4.52.0
 ```
 
 ```bash
-pip install langchain  sentence-transformers rouge_score fire nltk pandas joblib chromadb modelscope chardet langchain_community FlagEmbedding langchain_huggingface 
+pip install langchain sentence-transformers rouge_score fire nltk pandas joblib chromadb modelscope chardet langchain_community FlagEmbedding langchain_huggingface rank_bm25
 ```
 
 ## 注意事项
@@ -54,14 +54,26 @@ pip install langchain  sentence-transformers rouge_score fire nltk pandas joblib
     ```bash
         CUDA_VISIBLE_DEVICES=4,5,6,7 python main.py --mode inference
     ```
-4. 启动vllm模型服务，使用openai的接口
+4. 启动vllm模型服务，使用openai的接口\
+    - 非think模型：
     ```bash
         CUDA_VISIBLE_DEVICES=3,4,5,6 python -m vllm.entrypoints.openai.api_server \
             --model ./Models/Qwen2.5-14B-Instruct \
-            --port 8888 \
+            --port 22999 \
             --tensor-parallel-size 2 \
             --dtype auto \
             --gpu-memory-utilization 0.7
+    ```
+    - think模型
+    ```bash
+        CUDA_VISIBLE_DEVICES=0,1 python -m vllm.entrypoints.openai.api_server \
+            --model ./Models/Qwen3-4B \
+            --port 22999 \
+            --tensor-parallel-size 2 \
+            --dtype auto \
+            --gpu-memory-utilization 0.7 \
+            --enable-reasoning \
+            --reasoning-parser deepseek_r1
     ```
 5. 在slurm上启动vllm服务
     - 查看scripts中的脚本
