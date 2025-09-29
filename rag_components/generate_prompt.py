@@ -5,13 +5,28 @@ import os
 
 from configs import VectorBaseConfig
 from .build_vector_retriever import vector_retrieved_contexts
+from .llm_local_inference import run_llm
 
-def query_rewriter(cfg: VectorBaseConfig, question: str, device: str) -> str:
-    '''
-    Use LLM to rewrite the query, currently not used.
-    '''
-    # TO DO
-    return question
+def query_rewriter(cfg: VectorBaseConfig, query: str, question: str, n: int, model: str, device: str) -> str:
+    """
+    输入 query，返回多个改写后的 query
+    """
+    prompt = f"""
+你是一个查询改写助手。请根据用户的问题，生成 {n} 个不同但相关的检索查询，
+保证覆盖更多的相关语义和表述方式。
+
+用户问题: "{query}"
+请直接输出改写后的查询，每个一行。
+"""
+
+    response = run_llm(cfg, [prompt])[0]
+
+    rewrites = [
+        line.strip("-• ").strip()
+        for line in response.split("\n")
+        if line.strip()
+    ]
+    return rewrites[:n]
 
 def get_prompts(cfg: VectorBaseConfig, retriever: BaseRetriever, questions: List[str], device: str) -> List[str]:
     '''

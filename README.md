@@ -78,3 +78,12 @@ pip install langchain sentence-transformers rouge_score fire nltk pandas joblib 
 5. 在slurm上启动vllm服务
     - 查看scripts中的脚本
     - 如果遇到查询不到slurm命令，那么运行"bash -l"
+6. 在docker环境下，可能遇到ipc报错的问题，如下
+    ```bash
+        File "zmq/backend/cython/_zmq.py", line 1009, in zmq.backend.cython._zmq.Socket.bind
+        File "zmq/backend/cython/_zmq.py", line 190, in zmq.backend.cython._zmq._check_rc
+        zmq.error.ZMQError: Function not implemented (addr='ipc:///data/qiu_workspace/zms/tmp/03004154-d90f-4e92-9e06-4822d4115312')
+    ```
+    多半是 NFS 挂载盘 或者容器里的共享目录 → 不支持 ipc://
+
+    可以尝试，明确其输出socket文件到本地 `export TMPDIR=/tmp`

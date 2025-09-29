@@ -79,11 +79,11 @@ def get_data_chunks(cfg: VectorBaseConfig):
     return chunk_docs
 
 
-def get_queries(cfg: VectorBaseConfig, suffix: str):
+def get_queries(cfg: VectorBaseConfig, suffix: str, query_file: str = "queries.jsonl"):
     # load queries in beir format
     data_paths = []  # add multiple dataset
     for path in cfg.datastorage.raw_data_dir:
-        data_paths.append(os.path.join(path, "queries.jsonl"))
+        data_paths.append(os.path.join(path, query_file))
     queries = []
     for data_path in data_paths:
         with open(data_path, "r", encoding="utf-8") as f:
