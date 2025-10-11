@@ -4,6 +4,8 @@ from openai import OpenAI
 from typing import List, Tuple
 import random
 import json
+import textwrap
+
 
 BBQ_TEMPLATES = {
     "A": [
@@ -64,12 +66,12 @@ class BlackBoxQueryGenerator(QueryGenerator):
         """
         输入用户文本，返回多个关键词/实体
         """
-        prompt = f"""
+        prompt = textwrap.dedent(f"""
                     Given the following database description:
                     \"\"\"{self.description['intro']}\"\"\"
 
                     Please generate a list of {num_entities} relevant region knowledge and entities in English, without any extra explanation, prefix and suffix. Output as a JSON array.
-                """
+                """)
 
         response = self.llm.chat.completions.create(
             model=self.model,
