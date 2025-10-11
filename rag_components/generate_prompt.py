@@ -12,8 +12,8 @@ def query_rewriter(cfg: VectorBaseConfig, query: str, question: str, n: int, mod
     输入 query，返回多个改写后的 query
     """
     prompt = f"""
-你是一个查询改写助手。请根据用户的问题，生成 {n} 个不同但相关的检索查询，
-保证覆盖更多的相关语义和表述方式。
+你是一个查询改写助手。请根据用户的问题，生成 {n} 个逻辑连贯、不同且相关的检索查询，
+希望他能够覆盖更多的相关内容和表述方式。
 
 用户问题: "{query}"
 请直接输出改写后的查询，每个一行。

@@ -83,11 +83,11 @@ class Zeng24fiqa(VectorBaseConfig):
         # model_name = "./Models/Qwen2.5-1.5B-Instruct",
         # model_name = "./Models/Qwen2.5-3B-Instruct",
         # model_name = "./Models/Qwen2.5-7B-Instruct",
-        # model_name = "./Models/Qwen2.5-14B-Instruct",
+        model_name = "./Models/Qwen2.5-14B-Instruct",
         # model_name = "./Models/Qwen2.5-32B-Instruct",
         # model_name = "./Models/gemma-3-12b-it",
         # model_name = "./Models/gemma-3-27b-it",
-        model_name= "./Models/Qwen3-32B",
+        # model_name= "./Models/Qwen3-32B",
         reasoning = True,
         max_seq_len = 4096,
         max_gen_len = 4096,
@@ -118,7 +118,7 @@ class Zeng24fiqa(VectorBaseConfig):
         rerank = 'BAAI/bge-reranker-large',
         adhesive = "\n\n",
         params={
-            "k": 3,
+            "k": 10,
             "n": 3,
             "score_threshold": 0.5
         }

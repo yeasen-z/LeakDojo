@@ -57,7 +57,7 @@ pip install langchain sentence-transformers rouge_score fire nltk pandas joblib 
 4. 启动vllm模型服务，使用openai的接口\
     - 非think模型：
     ```bash
-        CUDA_VISIBLE_DEVICES=3,4,5,6 python -m vllm.entrypoints.openai.api_server \
+        CUDA_VISIBLE_DEVICES=0,1 python -m vllm.entrypoints.openai.api_server \
             --model ./Models/Qwen2.5-14B-Instruct \
             --port 22999 \
             --tensor-parallel-size 2 \
