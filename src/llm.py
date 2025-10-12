@@ -16,8 +16,9 @@ MODELS_THINKING_SUPPORT = ["Qwen3-4B", "Qwen3-8B", "Qwen3-14B", "Qwen3-32B"]
 class OpenAILLM(LLM):
     """基于 OpenAI 接口（包括兼容接口，如本地 vllm）的大模型推理类"""
 
-    def __init__(self, cfg: VectorBaseConfig, base_url: str = "http://localhost:22999/v1", api_key: str = "EMPTY", max_workers: int = 50):
+    def __init__(self, cfg: VectorBaseConfig, model: str = "./Models/Qwen2.5-14B-Instruct", base_url: str = "http://localhost:22999/v1", api_key: str = "EMPTY", max_workers: int = 50):
         self.cfg = cfg
+        self.model = model
         self.base_url = base_url
         self.api_key = api_key
         self.max_workers = max_workers
@@ -27,7 +28,7 @@ class OpenAILLM(LLM):
     def _call_api(self, prompt: str) -> str:
         """普通模式调用"""
         response = self.client.chat.completions.create(
-            model=self.cfg.llm.model_name,
+            model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=self.cfg.llm.temperature,
             top_p=self.cfg.llm.top_p,
@@ -38,7 +39,7 @@ class OpenAILLM(LLM):
     def _call_api_with_reasoning(self, prompt: str):
         """带 reasoning_content 的模型调用"""
         response = self.client.chat.completions.create(
-            model=self.cfg.llm.model_name,
+            model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=self.cfg.llm.temperature,
             top_p=self.cfg.llm.top_p,
@@ -52,7 +53,7 @@ class OpenAILLM(LLM):
 
     def infer(self, prompt: str) -> str:
         """单条推理（接口定义要求）"""
-        if self.cfg.llm.reasoning and os.path.basename(self.cfg.llm.model_name) in MODELS_THINKING_SUPPORT:
+        if self.cfg.llm.reasoning and os.path.basename(self.model) in MODELS_THINKING_SUPPORT:
             content, _ = self._call_api_with_reasoning(prompt)
             return content
         else:
@@ -64,7 +65,7 @@ class OpenAILLM(LLM):
 
         reasoning_mode = (
             self.cfg.llm.reasoning and
-            os.path.basename(self.cfg.llm.model_name) in MODELS_THINKING_SUPPORT
+            os.path.basename(self.model) in MODELS_THINKING_SUPPORT
         )
 
         with ThreadPoolExecutor(max_workers=50) as executor:

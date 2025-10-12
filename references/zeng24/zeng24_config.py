@@ -118,8 +118,8 @@ class Zeng24fiqa(VectorBaseConfig):
         rerank = 'BAAI/bge-reranker-large',
         adhesive = "\n\n",
         params={
-            "k": 10,
-            "n": 3,
+            "k": 15,
+            "n": 10,
             "score_threshold": 0.5
         }
     )

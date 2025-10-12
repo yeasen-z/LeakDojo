@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import List, Tuple, Union, Iterable
 import os, shutil, torch
 from FlagEmbedding import FlagReranker
 from langchain.schema import BaseRetriever
@@ -102,21 +102,88 @@ class VectorRetriever(Retriever):
 
         print(f"Retriever of {cfg.datastorage.tool} is ready.")
         return retriever
+
+    def _ensure_list_of_str(self, x: Union[str, Iterable[str]]) -> List[str]:
+        """Utility: 把单个 str 或可迭代[str] 统一成 List[str]."""
+        if isinstance(x, str):
+            return [x]
+        return list(x)
     
-    def retrieve(self, query: List[str]) -> Tuple[List, List]:
+    def _unique_docs_preserve_order(self, docs: List) -> List:
+        """
+        按 page_content 去重，保持原有顺序。
+        如果内容完全一致（忽略首尾空格），则只保留第一个。
+        """
+        seen = set()
+        unique = []
+
+        for doc in docs:
+            content = getattr(doc, "page_content", None)
+            if content is None:
+                # 没有内容的文档，用唯一对象 id 保证不被误去重
+                key = f"none_{id(doc)}"
+            else:
+                # 使用 strip 去除首尾空格影响
+                key = content.strip()
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+            unique.append(doc)
+
+        return unique
+
+    def retrieve(self, query: Union[List[str], List[List[str]]]) -> Tuple[List, List]:
         """输入多个查询，返回每个查询对应的多个检索结果"""
         cfg = self.cfg
         all_contexts, all_doc_ids = [], []
         for q in query:
-            docs = self.retriever.invoke(q)
+            # 统一为改写列表（可能是单条字符串或列表）
+            rewrites = self._ensure_list_of_str(q)
+
+            # 收集来自每个 rewrite 的检索结果
+            docs_aggregated = []
+            for rw in rewrites:
+                docs = self.retriever.invoke(rw)
+
+                # 支持单个 doc 或 list 返回，统一为 list
+                if docs is None:
+                    docs = []
+                elif not isinstance(docs, (list, tuple)):
+                    docs = [docs]
+
+                docs_aggregated.extend(docs)
+
+            # 合并 + 去重（按 doc_id 或 id 或 page_content）
+            docs_uniq = self._unique_docs_preserve_order(docs_aggregated)
+
+            # docs = self.retriever.invoke(q)
             
+            # # 如果不启用 reranker，则仅保留前 n 个
+            # if cfg.retrieval.rerank == None:
+            #     top_docs = docs[:cfg.retrieval.params.get("n", 3)]
+            #     print(f"[INFO] Retrieved {len(docs)} docs, return top {len(top_docs)} docs without reranking.")
+            # else:
+            #     # 有独立的 reranker 类，这里不 rerank，外部调用时再做
+            #     top_docs = docs
+
+            # # 收集对应的 context
+            # all_contexts.append([doc.page_content for doc in top_docs])
+
+            # # 收集对应的 doc id
+            # all_doc_ids.append([
+            #     doc.metadata.get("doc_id", getattr(doc, "id", "unknown"))
+            #     for doc in top_docs
+            # ])
+
             # 如果不启用 reranker，则仅保留前 n 个
             if cfg.retrieval.rerank == None:
-                top_docs = docs[:cfg.retrieval.params.get("n", 3)]
-                print(f"[INFO] Retrieved {len(docs)} docs, return top {len(top_docs)} docs without reranking.")
+                top_docs = docs_uniq[:cfg.retrieval.params.get("n", 3)]
+                print(f"[INFO] Retrieved {len(docs_uniq)} docs, return top {len(top_docs)} docs without reranking.")
             else:
                 # 有独立的 reranker 类，这里不 rerank，外部调用时再做
-                top_docs = docs
+                top_docs = docs_uniq
 
             # 收集对应的 context
             all_contexts.append([doc.page_content for doc in top_docs])

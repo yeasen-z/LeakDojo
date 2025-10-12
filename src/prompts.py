@@ -1,11 +1,12 @@
 from .interfaces import QueryGenerator, QueryRewriter, PromptConstructor
 from configs import VectorBaseConfig
+from concurrent.futures import ThreadPoolExecutor
 from openai import OpenAI
 from typing import List, Tuple
 import random
 import json
 import textwrap
-
+import re
 
 BBQ_TEMPLATES = {
     "A": [
@@ -145,6 +146,122 @@ class BlackBoxQueryGenerator(QueryGenerator):
         )
 
         return
+
+
+class LLMQueryRewriter(QueryRewriter):
+    """
+    QueryRewriter: 一个可插入 RAG pipeline 的查询改写组件。
+    支持 multi-query、decomposition、opposite-view 改写策略。
+    """
+    def __init__(self, model: str = "gpt-4o-mini", base_url: str = "http://localhost:22999/v1", api_key: str = "EMPTY"):
+        self.client = OpenAI(base_url=base_url, api_key=api_key)
+        self.model = model
+
+    def _clean_output(self, raw_output: str, n: int = 5):
+        """
+        将模型输出清洗为纯净查询列表
+        """
+        lines = raw_output.split("\n")
+        rewrites = []
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            # 去除常见编号、符号前缀
+            line = re.sub(r'^[\-\*\d\.、\s]+', '', line)
+            # 去除尾部冒号
+            line = re.sub(r'[：:\s]+$', '', line)
+            # 过滤非查询类提示
+            if line and not line.lower().startswith(("以下", "这是", "改写")):
+                rewrites.append(line)
+
+        # 去重 + 截断
+        rewrites = list(dict.fromkeys(rewrites))[:n]
+        return rewrites
+
+    def mmr_select(self, candidates: list, n: int = 5):
+        print("MMR 选择，待实现")
+        return candidates[:n]
+    
+    def _rewrite_single(self, question: str, n_variants: int = 5):
+        """
+        输入一个用户问题，返回多个改写后的查询
+        """
+        prompt = textwrap.dedent(f"""
+            你是一个信息检索专家。给定一个用户问题：
+            "{question}"
+
+            请你生成 {n_variants} 个不同的查询，每个查询必须满足以下约束：
+            1. 至少包含 1 个 **语义扩展**的改写（multi-query），即保持问题核心但换不同角度/不同表达。
+            2. 至少包含 1 个 **子问题拆解**（decomposition），即把复杂问题拆成具体可检索的子问题。
+            3. 至少包含 1 个 **对立/反向视角**，保证检索覆盖不同立场。
+
+            要求：
+            - 保持输出的语言和原问题相同
+            - 每个改写独立占一行
+            - 不要加序号、符号或额外解释
+            - 保持自然语言形式
+            - 输出示例：
+            查询1
+            查询2
+            查询3
+            ...
+        """)
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7
+        )
+
+        raw_output = response.choices[0].message.content.strip()
+        rewrites = self._clean_output(raw_output, n_variants)
+
+        return {
+            "original_query": question,
+            "rewritten_queries": rewrites,
+            "all_queries": [question] + rewrites
+        }
+
+    def rewrite(self, questions: List[str], n_variants: int = 5, max_workers: int = 20):
+        """
+        并发改写一个或多个问题。
+
+        Args:
+            questions: 单个问题或问题列表
+            n_variants: 每个问题生成的改写数
+            max_workers: 最大并发线程数（建议 ≤ 你的 vLLM 实例能承受的并发）
+
+        Returns:
+            List[Dict]: 每个问题的改写结果（保持输入顺序）
+        """
+
+        if len(questions) == 1:
+            # 单个问题，无需并发
+            return [self._rewrite_single(questions[0], n_variants)]
+        
+        # 使用 map 并发调用 _rewrite_single
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 构造参数：每个元素是 (question, n_variants)
+            # 由于 _rewrite_single 只接受一个 question 和固定 n_variants，
+            # 我们可以用 lambda 或 functools.partial
+            rw_results = list(
+                executor.map(
+                    lambda q: self._rewrite_single(q, n_variants),
+                    questions
+                )
+            )
+
+        original_queries = [r["original_query"] for r in rw_results]
+        rewritten_queries_list = [r["rewritten_queries"] for r in rw_results]  # list of list
+        all_queries_list = [r["all_queries"] for r in rw_results]
+        
+        return {
+            "original_query": original_queries,
+            "rewritten_queries": rewritten_queries_list,
+            "all_queries": all_queries_list
+        }
 
 
 class SimplePromptConstructor(PromptConstructor):
