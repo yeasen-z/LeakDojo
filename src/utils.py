@@ -64,6 +64,26 @@ def corpus_to_documents(corpus: Dict, cfg: VectorBaseConfig):
         #     )
     return documents
 
+def corpus_to_documents_params(corpus: Dict):
+    """
+    将 BEIR corpus 转换为 LangChain Documents，并自动分chunk
+    """
+    documents = []
+    for doc_id, doc in corpus.items():
+        full_text = (doc["title"] + "\n" + doc["text"]).strip()
+        # chunks = text_splitter.split_text(full_text)
+        documents.append(
+            Document(
+                page_content=full_text,
+                metadata={
+                    "doc_id": doc_id,
+                    "title": doc["title"],
+                }
+            )
+        )
+    return documents
+
+
 def get_data_chunks(cfg: VectorBaseConfig):
     # load data in beir format
     data_path = []
@@ -74,6 +94,19 @@ def get_data_chunks(cfg: VectorBaseConfig):
 
     # get data chunk
     chunk_docs = corpus_to_documents(data, cfg)
+
+    return chunk_docs
+
+def get_data_chunks_by_params(data_paths: List[str]):
+    # load data in beir format
+    data_path = []
+    for raw_data_dir in data_paths:
+        data_path.append(os.path.join(raw_data_dir, "corpus.jsonl"))
+        
+    data = load_corpus(data_path)
+
+    # get data chunk
+    chunk_docs = corpus_to_documents_params(data)
 
     return chunk_docs
 

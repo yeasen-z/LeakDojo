@@ -16,13 +16,24 @@ MODELS_THINKING_SUPPORT = ["Qwen3-4B", "Qwen3-8B", "Qwen3-14B", "Qwen3-32B"]
 class OpenAILLM(LLMManager):
     """基于 OpenAI 接口（包括兼容接口，如本地 vllm）的大模型推理类"""
 
-    def __init__(self, cfg: VectorBaseConfig, model: str = "./Models/Qwen2.5-14B-Instruct", base_url: str = "http://localhost:22999/v1", api_key: str = "EMPTY", max_workers: int = 50):
-        self.cfg = cfg
+    def __init__(self, 
+                 model: str = "./Models/Qwen2.5-14B-Instruct", 
+                 base_url: str = "http://localhost:22999/v1", 
+                 api_key: str = "EMPTY", 
+                 reasoning: bool = True,
+                 temperature: float = 0.8,
+                 top_p: float = 0.9,
+                 max_gen_len: int = 4096,
+                 max_workers: int = 50):
         self.model = model
         self.base_url = base_url
         self.api_key = api_key
+        self.reasoning = reasoning
         self.max_workers = max_workers
-        
+        self.temperature = temperature
+        self.top_p = top_p
+        self.max_gen_len = max_gen_len
+
         self.client = OpenAI(base_url=self.base_url, api_key=self.api_key)
 
     def _call_api(self, prompt: str) -> str:
@@ -30,9 +41,9 @@ class OpenAILLM(LLMManager):
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=self.cfg.llm.temperature,
-            top_p=self.cfg.llm.top_p,
-            max_tokens=self.cfg.llm.max_gen_len,
+            temperature=self.temperature,
+            top_p=self.top_p,
+            max_tokens=self.max_gen_len,
         )
         return response.choices[0].message.content.strip()
 
@@ -41,9 +52,9 @@ class OpenAILLM(LLMManager):
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=self.cfg.llm.temperature,
-            top_p=self.cfg.llm.top_p,
-            max_tokens=self.cfg.llm.max_gen_len
+            temperature=self.temperature,
+            top_p=self.top_p,
+            max_tokens=self.max_gen_len
         )
 
         content = getattr(response.choices[0].message, "content", "") or ""
@@ -53,41 +64,29 @@ class OpenAILLM(LLMManager):
 
     def infer(self, prompt: str) -> str:
         """单条推理（接口定义要求）"""
-        if self.cfg.llm.reasoning and os.path.basename(self.model) in MODELS_THINKING_SUPPORT:
-            content, _ = self._call_api_with_reasoning(prompt)
-            return content
+        if self.reasoning and os.path.basename(self.model) in MODELS_THINKING_SUPPORT:
+            answers, reasons = self._call_api_with_reasoning(prompt)
+            return answers, reasons
         else:
-            return self._call_api(prompt)
+            return self._call_api(prompt), None
 
     def batch_infer(self, all_prompts: List[str]) -> List[str]:
         """批量推理，带多线程"""
         answers, reasons = [], []
 
         reasoning_mode = (
-            self.cfg.llm.reasoning and
+            self.reasoning and
             os.path.basename(self.model) in MODELS_THINKING_SUPPORT
         )
 
         with ThreadPoolExecutor(max_workers=50) as executor:
             if reasoning_mode:
                 results = list(executor.map(self._call_api_with_reasoning, all_prompts))
-                for answer, reason in results:
-                    answers.append(answer)
-                    reasons.append(reason)
             else:
-                answers = list(executor.map(self._call_api, all_prompts))
+                results = list(executor.map(self._call_api, all_prompts))
+    
+            for answer, reason in results:
+                answers.append(answer)
+                reasons.append(reason)
 
-        # 保存结果
-        output_dir = self.cfg.expconfig.output_dir
-        os.makedirs(output_dir, exist_ok=True)
-
-        answers_path = os.path.join(output_dir, get_llm_output_file(self.cfg))
-        with open(answers_path, "w", encoding="utf-8") as f_a:
-            json.dump(answers, f_a, ensure_ascii=False, indent=2)
-
-        if reasoning_mode:
-            reasons_path = answers_path.replace(".json", "_reasoning.json")
-            with open(reasons_path, "w", encoding="utf-8") as f_r:
-                json.dump(reasons, f_r, ensure_ascii=False, indent=2)
-
-        return answers
+        return answers, reasons

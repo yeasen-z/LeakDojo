@@ -101,7 +101,7 @@ class Zeng24fiqa(VectorBaseConfig):
         adhesive="\n"
     )
     retrieval: vRetrievalConfig = vRetrievalConfig(
-        # method="mmr",
+        method="mmr",
         # # method="BM25",
         # rerank = 'BAAI/bge-reranker-large',
         # # rerank = "./Models/ms-marco-TinyBERT-L2-v2",
@@ -114,7 +114,8 @@ class Zeng24fiqa(VectorBaseConfig):
         #     "fetch_k": 40
         # }
 
-        method="similarity_score_threshold",
+        # method="similarity_score_threshold",
+
         rerank = 'BAAI/bge-reranker-large',
         adhesive = "\n\n",
         params={

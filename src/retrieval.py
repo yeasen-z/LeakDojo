@@ -12,57 +12,82 @@ from configs import VectorBaseConfig
 import re
 import torch.nn.functional as F
 import textwrap
-from .utils import get_retrieval_info, get_data_chunks
+from .utils import get_retrieval_info, get_data_chunks, get_data_chunks_by_params
 from openai import OpenAI
 
 from .interfaces import Retriever, Reranker, Summarizer, LLMManager
 
-
 class VectorRetriever(Retriever):
-    def __init__(self, cfg: VectorBaseConfig, device: str = 'cpu', force_rebuild: bool = False, retrival_database_batch_size: int = 256):
-        self.cfg = cfg
+    def __init__(self, 
+                retrieval_name: str, 
+                retrieval_store_path: str, 
+                retrieval_method: str,
+                embedding_provider: str,
+                embedding_model_dir: str,
+                data_dir_list: List[str],
+                datastorage_tool: str = "chroma",
+                top_k: int = 15,
+                fetch_k: int = 60,
+                score_threshold: float = 0.75,
+                device: str = 'cpu', 
+                force_rebuild: bool = False, 
+                retrival_database_batch_size: int = 256):
+
         self.device = device
         self.force_rebuild = force_rebuild
         self.retrival_database_batch_size = retrival_database_batch_size
-
+        
         # 准备相关信息，数据库名称以及保存地址
-        retrieval_name, retrieval_store_path = get_retrieval_info(cfg)
-        print(f"[INFO] Retrieval name: {retrieval_name}", f"Store path: {retrieval_store_path}")
+        
+        self.config = {
+            "retrieval_name": retrieval_name,
+            "retrieval_store_path": retrieval_store_path,
+            "retrieval_method": retrieval_method,
+            "datastorage_tool": datastorage_tool,
+            "embedding_provider": embedding_provider,
+            "embedding_model_dir": embedding_model_dir,
+            "data_dir_list": data_dir_list,
+            "top_k": top_k,
+            "fetch_k": fetch_k,
+            "score_threshold": score_threshold
+        }
+
+        print(f"[INFO] Retrieval name: {self.config['retrieval_name']}", f"Store path: {self.config['retrieval_store_path']}")
 
         # 检查是否为BM25, 如果是，跳过向量数据库建立阶段，直接建立检索器
-        if cfg.retrieval.method == 'BM25':
+        if self.config['retrieval_method'] == 'BM25':
             self.database = None
             self.retriever = self._build_retriever()
-            print(f"[INFO] BM25 Retriever for {retrieval_name} is ready!")
+            print(f"[INFO] BM25 Retriever for {self.config['retrieval_name']} is ready!")
             return
         
         # 如果是向量数据库模型
         # 是否强制重建
-        if self.force_rebuild and os.path.exists(retrieval_store_path):
-            print(f"[INFO] Force rebuild {retrieval_name}")
-            shutil.rmtree(retrieval_store_path)
+        if self.force_rebuild and os.path.exists(self.config['retrieval_store_path']):
+            print(f"[INFO] Force rebuild {self.config['retrieval_name']}")
+            shutil.rmtree(self.config['retrieval_store_path'])
 
         # 构建向量数据库
-        if 'chroma' in cfg.datastorage.tool:
-            self.database = self._build_chroma_database(retrieval_store_path, retrieval_name)
+        if 'chroma' in self.config['datastorage_tool']:
+            self.database = self._build_chroma_database(self.config['retrieval_store_path'], self.config['retrieval_name'])
         else:
-            raise Exception(f"Datastore {cfg.datastorage.tool} not supported")
-        
+            raise Exception(f"Datastore {self.config['datastorage_tool']} not supported")
+
         self.retriever = self._build_retriever()
-        print(f"[INFO] Retriever for {retrieval_name} is ready!")
+        print(f"[INFO] Retriever for {self.config['retrieval_name']} is ready!")
 
     def _embed_model(self):
-        if self.cfg.embedding.provider == 'openai':
+        if self.config['embedding_provider'] == 'openai':
             embed_model = OpenAIEmbeddings()
-        elif self.cfg.embedding.provider == 'hf':
+        elif self.config['embedding_provider'] == 'hf':
             try:
                 embed_model = HuggingFaceEmbeddings(
-                    model_name=self.cfg.embedding.model_dir,
+                    model_name=self.config['embedding_model_dir'],
                     model_kwargs={'device': self.device},
                     encode_kwargs={'device': self.device, 'batch_size': self.retrival_database_batch_size,"normalize_embeddings": True}
                     )
-            except self.cfg.embedding.model_dir:
-                raise Exception(f"Encoder {self.cfg.embedding.model_dir} not found, please check.")
+            except self.config['embedding_model_dir']:
+                raise Exception(f"Encoder {self.config['embedding_model_dir']} not found, please check.")
         return embed_model
 
     def _build_chroma_database(self, retrieval_store_path: str, retrieval_name: str):
@@ -75,7 +100,7 @@ class VectorRetriever(Retriever):
         else:
             # new db
             print(f"[INFO] Building new Chroma DB: {retrieval_name}")
-            chunk_docs = get_data_chunks(self.cfg)
+            chunk_docs = get_data_chunks_by_params(self.config['data_dir_list'])
             db = Chroma.from_documents(
                 documents=chunk_docs,
                 embedding=embed_model,
@@ -85,26 +110,25 @@ class VectorRetriever(Retriever):
         return db
     
     def _build_retriever(self) -> BaseRetriever:
-        cfg = self.cfg
-        if cfg.retrieval.method == 'similarity_score_threshold':
+        if self.config['retrieval_method'] == 'similarity_score_threshold':
             retriever: BaseRetriever = self.database.as_retriever(
-                    search_type = cfg.retrieval.method,
-                    search_kwargs={"k": cfg.retrieval.params.get("k", 4),
-                                'score_threshold': cfg.retrieval.params.get("score_threshold", 0.75)}  # get k, default 4
+                    search_type = 'similarity_score_threshold',
+                    search_kwargs={"k": self.config["top_k"],
+                                'score_threshold': self.config['score_threshold']}  # get k, default 4
                 )
-            print(f"Retriever of {cfg.retrieval.method} is ready.")
-        elif cfg.retrieval.method == 'mmr':
+            print(f"Retriever of {self.config['retrieval_method']} is ready.")
+        elif self.config['retrieval_method'] == 'mmr':
             retriever: BaseRetriever = self.database.as_retriever(
-                    search_type = cfg.retrieval.method,
-                    search_kwargs={"k": cfg.retrieval.params.get("k", 4),
-                                'fetch_k': cfg.retrieval.params.get("fetch_k", 8)}  # get k, default 4
+                    search_type = 'mmr',
+                    search_kwargs={"k": self.config['top_k'],
+                                'fetch_k': self.config['fetch_k']}  # get k, default 4
                 )
-            print(f"Retriever of {cfg.retrieval.method} is ready.")
-        elif cfg.retrieval.method == 'BM25':
-            docs = get_data_chunks(cfg)
-            retriever: BaseRetriever = BM25Retriever.from_documents(docs, k=cfg.retrieval.params.get("k", 4))
+            print(f"Retriever of {self.config['retrieval_method']} is ready.")
+        elif self.config['retrieval_method'] == 'BM25':
+            docs = get_data_chunks(self.config)
+            retriever: BaseRetriever = BM25Retriever.from_documents(docs, k=self.config['top_k'])
 
-        print(f"Retriever of {cfg.datastorage.tool} is ready.")
+        print(f"Retriever of {self.config['datastorage_tool']} is ready.")
         return retriever
 
     def _ensure_list_of_str(self, x: Union[str, Iterable[str]]) -> List[str]:
@@ -140,7 +164,6 @@ class VectorRetriever(Retriever):
 
     def retrieve(self, query: Union[List[str], List[List[str]]]) -> Tuple[List, List]:
         """输入多个查询，返回每个查询对应的多个检索结果"""
-        cfg = self.cfg
         all_contexts, all_doc_ids = [], []
         for q in query:
             # 统一为改写列表（可能是单条字符串或列表）
@@ -160,15 +183,7 @@ class VectorRetriever(Retriever):
                 docs_aggregated.extend(docs)
 
             # 合并 + 去重（按 doc_id 或 id 或 page_content）
-            docs_uniq = self._unique_docs_preserve_order(docs_aggregated)
-
-            # 如果不启用 reranker，则仅保留前 n 个
-            if cfg.retrieval.rerank == None:
-                top_docs = docs_uniq[:cfg.retrieval.params.get("n", 3)]
-                print(f"[INFO] Retrieved {len(docs_uniq)} docs, return top {len(top_docs)} docs without reranking.")
-            else:
-                # 有独立的 reranker 类，这里不 rerank，外部调用时再做
-                top_docs = docs_uniq
+            top_docs = self._unique_docs_preserve_order(docs_aggregated)
 
             # 收集对应的 context
             all_contexts.append([doc.page_content for doc in top_docs])
@@ -183,18 +198,19 @@ class VectorRetriever(Retriever):
 
 
 class RerankerManager(Reranker):
-    def __init__(self, cfg: VectorBaseConfig, device: str = 'cpu'):
-        self.cfg = cfg
+    def __init__(self, reranker_dir: str = 'BAAI/bge-reranker-large', top_n: int = 10, device: str = 'cpu'):
         self.device = device
-        
+        self.reranker_dir = reranker_dir
+        self.top_n = top_n
+
         # 准备 reranker, 如果config没有，那么不应该调用reranker的生成，程序应当报错
-        if cfg.retrieval.rerank:
+        if self.reranker_dir:
             # rerank the documents based on similarity score
-            self.reranker = FlagReranker(cfg.retrieval.rerank, devices=device, use_fp16=True)
-            print(f"[INFO] Reranker {cfg.retrieval.rerank} is ready!")
+            self.reranker = FlagReranker(self.reranker_dir, devices=device, use_fp16=True)
+            print(f"[INFO] Reranker {self.reranker_dir} is ready!")
         else:
             raise ValueError(
-                "[ERROR] No reranker specified in config. Please set `cfg.retrieval.rerank` to a valid model name (e.g., 'BAAI/bge-reranker-large')."
+                "[ERROR] No reranker specified in config. Please set `reranker_dir` to a valid model name (e.g., 'BAAI/bge-reranker-large')."
             )
 
     def rerank(self, docs: List[List[str]], docs_id: List[List[str]], queries: List[str]) -> List[List[str]]:
@@ -210,7 +226,7 @@ class RerankerManager(Reranker):
 
         all_reranked_docs = []
         all_reranked_doc_ids = []
-        n = self.cfg.retrieval.params.get("n", 3)
+        n = self.top_n
 
         for query, doc_list, doc_id_list in zip(queries, docs, docs_id):
             if not doc_list:
@@ -242,18 +258,25 @@ class RerankerManager(Reranker):
 
 class LLMHybridSummarization(Summarizer):
     """ Hybrid抽取式压缩：分句 + 短句合并 + Embedding筛选 + Query-aware压缩， 使用LLM"""
-    def __init__(self, cfg, 
+    def __init__(self,
                  llm: LLMManager,
+                 embed_provider: str = 'hf',
+                 embed_model_dir: str = './Models/BAAI-bge-large-en-v1.5',
                  device: str = 'cpu', 
-                 retain_ratio: float = 0.5, 
-                 short_sent_threshold: int = 10
+                 retain_ratio: float = 0.8, 
+                 retain_floor: int = 10,
+                 short_sent_threshold: int = 200,
+                 embed_batch_size: int = 256
                  ):
-        self.cfg = cfg
-        self.embed_model = self._embed_model()
         self.llm = llm
+        self.embed_provider = embed_provider
+        self.embed_model_dir = embed_model_dir
         self.retain_ratio = retain_ratio
+        self.retain_floor = retain_floor
         self.short_sent_threshold = short_sent_threshold
         self.device = device
+        self.embed_batch_size = embed_batch_size
+        self.embed_model = self._embed_model()
 
     def _split_and_merge_sentences(self, text: str) -> List[str]:
         if not text or not isinstance(text, str):
@@ -280,17 +303,17 @@ class LLMHybridSummarization(Summarizer):
         return merged
 
     def _embed_model(self):
-        if self.cfg.embedding.provider == 'openai':
+        if self.embed_provider == 'openai':
             embed_model = OpenAIEmbeddings()
-        elif self.cfg.embedding.provider == 'hf':
+        elif self.embed_provider == 'hf':
             try:
                 embed_model = HuggingFaceEmbeddings(
-                    model_name=self.cfg.embedding.model_dir,
+                    model_name=self.embed_model_dir,
                     model_kwargs={'device': self.device},
-                    encode_kwargs={'device': self.device, 'batch_size': self.retrival_database_batch_size,"normalize_embeddings": True}
+                    encode_kwargs={'device': self.device, 'batch_size': self.embed_batch_size,"normalize_embeddings": True}
                     )
-            except self.cfg.embedding.model_dir:
-                raise Exception(f"Encoder {self.cfg.embedding.model_dir} not found, please check.")
+            except self.embed_model_dir:
+                raise Exception(f"Encoder {self.embed_model_dir} not found, please check.")
         return embed_model
     
     def _embedding_filter(self, sentences: List[str]) -> List[str]:
@@ -310,43 +333,54 @@ class LLMHybridSummarization(Summarizer):
 
         doc_emb = embs.mean(dim=0, keepdim=True)
         sims = F.cosine_similarity(embs, doc_emb)
-        topk = max(1, int(len(sentences) * self.retain_ratio))
+        topk = max(1, self.retain_floor, int(len(sentences) * self.retain_ratio))
         top_idx = sims.topk(topk).indices.tolist()
         return [sentences[i] for i in sorted(top_idx)]
 
     def _query_filter(self, sentences: List[str], query: str) -> List[str]:
         
-        joined = "\n".join(f"- {s}" for s in sentences)
-        prompt = textwrap.dedent(f"""Please extract only the sentences most relevant to the question below, without rewriting them.
-                                Question: {query}
-                                Sentences:
-                                {joined}
-                                Return only the kept sentences, one per line."""
-                                )
+        extracted = []
+    
+        for s in sentences:
+            prompt = textwrap.dedent(f"""
+                Please extract the most important information for the question from the sentence below, do not rewrite it unless it is necessary.
+                Question: {query}
+                Sentence: {s}
+                Do not remove any numbers, percentages, units, or dates. Return all numerical information as-is. Do NOT add any introductory words, explanations, or formatting.
+            """)
+            
+            try:
+                response, _ = self.llm.infer(prompt)
+                info = response.strip()
+                if info:
+                    extracted.append(info)
+            except Exception as e:
+                print(f"[WARN] LLM failed on sentence: {s}\nError: {e}")
+                # 可选择 fallback: 用原句或跳过
+                # extracted.append(s)
         
-        try:
-            response = self.llm.infer(prompt)
-            selected = [line.strip("- ").strip() for line in response.split("\n") if line.strip()]
-            return [s for s in sentences if any(sel in s for sel in selected)]
-        except Exception as e:
-            print(f"[WARN] LLM query filter failed: {e}")
-            return sentences
+        return extracted
 
 
-    def summarize(self, documents: List[str]) -> List[str]:
+    def summarize(self, documents: List[List[str]], queries: List[str]) -> List[str]:
         """
         对输入的文档列表进行抽取式压缩，返回压缩后的文档列表
         """
-        # TODO: 实现具体的压缩逻辑
-        return documents
-    
 
-class GroupSummarization(Summarizer):
-    """ 当chunk长度不够的时候，不适合直接进行摘要，这时候可以把多个chunk进行合并，然后再进行摘要 """
-    def __init__(self, cfg):
-        self.cfg = cfg
+        if not documents:
+            return []
 
-    def summarize(self, documents: List[str]) -> str:
-        """
-        对输入的文档列表进行分组摘要，返回摘要文本
-        """
+        sentenses = []
+        for doc_list in documents:
+            sentenses.append([])
+            for doc in doc_list:
+                out = self._split_and_merge_sentences(doc)
+                sentenses[-1].extend(out)
+
+        embed_filtered = []
+        query_filtered = []
+        for sentense_list, query in zip(sentenses, queries):
+            embed_filtered.append(self._embedding_filter(sentense_list))
+            query_filtered.append(self._query_filter(embed_filtered[-1], query))
+
+        return query_filtered

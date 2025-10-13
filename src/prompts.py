@@ -1,4 +1,4 @@
-from .interfaces import QueryGenerator, QueryRewriter, PromptConstructor
+from .interfaces import QueryGenerator, QueryRewriter, PromptConstructor, LLMManager
 from configs import VectorBaseConfig
 from concurrent.futures import ThreadPoolExecutor
 from openai import OpenAI
@@ -57,11 +57,12 @@ BBQ_DOMAIN_WEIGHTS = {
 class BlackBoxQueryGenerator(QueryGenerator):
     """黑盒静态的问题生成器，llm推荐使用性能较强的模型来保证关键词的多样性和准确性（e.g. Qwen3-32B）"""
 
-    def __init__(self, description, model: str = "./Models/Qwen3-32B", base_url: str = "http://localhost:22999/v1", api_key: str = "EMPTY"):
+    def __init__(self, 
+                description, 
+                llm: LLMManager):
         self.description = description
         self.template = BBQ_TEMPLATES
-        self.llm = OpenAI(base_url=base_url, api_key=api_key)
-        self.model = model
+        self.llm = llm
 
     def create_entity(self, num_entities=30) -> List[str]:
         """
@@ -74,15 +75,16 @@ class BlackBoxQueryGenerator(QueryGenerator):
                     Please generate a list of {num_entities} relevant region knowledge and entities in English, without any extra explanation, prefix and suffix. Output as a JSON array.
                 """)
 
-        response = self.llm.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            top_p=0.8,
-            max_tokens=2048
-        )
+        # response = self.llm.chat.completions.create(
+        #     model=self.model,
+        #     messages=[{"role": "user", "content": prompt}],
+        #     temperature=0.7,
+        #     top_p=0.8,
+        #     max_tokens=2048
+        # )
+        response, _ = self.llm.infer(prompt)
 
-        return response.choices[0].message.content.replace("\n", "")
+        return response.replace("\n", "")
     
 
     def fillin_template(self, allocation, entity_pool: List[str], variants_per_template=2):
@@ -153,9 +155,8 @@ class LLMQueryRewriter(QueryRewriter):
     QueryRewriter: 一个可插入 RAG pipeline 的查询改写组件。
     支持 multi-query、decomposition、opposite-view 改写策略。
     """
-    def __init__(self, model: str = "gpt-4o-mini", base_url: str = "http://localhost:22999/v1", api_key: str = "EMPTY"):
-        self.client = OpenAI(base_url=base_url, api_key=api_key)
-        self.model = model
+    def __init__(self, llm: LLMManager):
+        self.llm = llm
 
     def _clean_output(self, raw_output: str, n: int = 5):
         """
@@ -209,13 +210,14 @@ class LLMQueryRewriter(QueryRewriter):
             ...
         """)
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
-        )
+        # response = self.client.chat.completions.create(
+        #     model=self.model,
+        #     messages=[{"role": "user", "content": prompt}],
+        #     temperature=0.7
+        # )
+        response, _ = self.llm.infer(prompt)
 
-        raw_output = response.choices[0].message.content.strip()
+        raw_output = response
         rewrites = self._clean_output(raw_output, n_variants)
 
         return {
