@@ -37,7 +37,7 @@ class PromptConstructor(ABC):
         """Prompt 构造器：将 query 和得到的上下文拼接成最终的 prompt"""
         pass
 
-class LLM(ABC):
+class LLMManager(ABC):
     @abstractmethod
     def infer(self, prompt: str) -> str:
         """大模型：输入 prompt，输出生成结果"""

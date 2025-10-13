@@ -6,14 +6,14 @@ from typing import List
 from abc import ABC
 from configs import VectorBaseConfig
 
-from .interfaces import LLM
+from .interfaces import LLMManager
 from .utils import get_llm_output_file
 
 
 MODELS_THINKING_SUPPORT = ["Qwen3-4B", "Qwen3-8B", "Qwen3-14B", "Qwen3-32B"]
 
 
-class OpenAILLM(LLM):
+class OpenAILLM(LLMManager):
     """基于 OpenAI 接口（包括兼容接口，如本地 vllm）的大模型推理类"""
 
     def __init__(self, cfg: VectorBaseConfig, model: str = "./Models/Qwen2.5-14B-Instruct", base_url: str = "http://localhost:22999/v1", api_key: str = "EMPTY", max_workers: int = 50):

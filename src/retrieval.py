@@ -9,9 +9,13 @@ from langchain_community.vectorstores import Chroma
 # from longchain_chroma import Chroma
 from langchain_community.retrievers import BM25Retriever
 from configs import VectorBaseConfig
+import re
+import torch.nn.functional as F
+import textwrap
 from .utils import get_retrieval_info, get_data_chunks
+from openai import OpenAI
 
-from .interfaces import Retriever, Reranker
+from .interfaces import Retriever, Reranker, Summarizer, LLMManager
 
 
 class VectorRetriever(Retriever):
@@ -158,25 +162,6 @@ class VectorRetriever(Retriever):
             # 合并 + 去重（按 doc_id 或 id 或 page_content）
             docs_uniq = self._unique_docs_preserve_order(docs_aggregated)
 
-            # docs = self.retriever.invoke(q)
-            
-            # # 如果不启用 reranker，则仅保留前 n 个
-            # if cfg.retrieval.rerank == None:
-            #     top_docs = docs[:cfg.retrieval.params.get("n", 3)]
-            #     print(f"[INFO] Retrieved {len(docs)} docs, return top {len(top_docs)} docs without reranking.")
-            # else:
-            #     # 有独立的 reranker 类，这里不 rerank，外部调用时再做
-            #     top_docs = docs
-
-            # # 收集对应的 context
-            # all_contexts.append([doc.page_content for doc in top_docs])
-
-            # # 收集对应的 doc id
-            # all_doc_ids.append([
-            #     doc.metadata.get("doc_id", getattr(doc, "id", "unknown"))
-            #     for doc in top_docs
-            # ])
-
             # 如果不启用 reranker，则仅保留前 n 个
             if cfg.retrieval.rerank == None:
                 top_docs = docs_uniq[:cfg.retrieval.params.get("n", 3)]
@@ -253,3 +238,115 @@ class RerankerManager(Reranker):
             all_reranked_doc_ids.append(reranked_doc_ids)
 
         return all_reranked_docs, all_reranked_doc_ids
+
+
+class LLMHybridSummarization(Summarizer):
+    """ Hybrid抽取式压缩：分句 + 短句合并 + Embedding筛选 + Query-aware压缩， 使用LLM"""
+    def __init__(self, cfg, 
+                 llm: LLMManager,
+                 device: str = 'cpu', 
+                 retain_ratio: float = 0.5, 
+                 short_sent_threshold: int = 10
+                 ):
+        self.cfg = cfg
+        self.embed_model = self._embed_model()
+        self.llm = llm
+        self.retain_ratio = retain_ratio
+        self.short_sent_threshold = short_sent_threshold
+        self.device = device
+
+    def _split_and_merge_sentences(self, text: str) -> List[str]:
+        if not text or not isinstance(text, str):
+            return []
+        
+        sents = re.split(r'(?<=[。！？.!?])\s*', text)
+        sents = [s.strip() for s in sents if s.strip()]
+
+        if not sents:
+            return []
+
+        merged, buffer = [], ""
+        for s in sents:
+            if len(s.split()) < self.short_sent_threshold:
+                buffer += " " + s
+            else:
+                if buffer:
+                    merged.append(buffer.strip())
+                    buffer = ""
+                merged.append(s)
+        if buffer:
+            merged.append(buffer.strip())
+
+        return merged
+
+    def _embed_model(self):
+        if self.cfg.embedding.provider == 'openai':
+            embed_model = OpenAIEmbeddings()
+        elif self.cfg.embedding.provider == 'hf':
+            try:
+                embed_model = HuggingFaceEmbeddings(
+                    model_name=self.cfg.embedding.model_dir,
+                    model_kwargs={'device': self.device},
+                    encode_kwargs={'device': self.device, 'batch_size': self.retrival_database_batch_size,"normalize_embeddings": True}
+                    )
+            except self.cfg.embedding.model_dir:
+                raise Exception(f"Encoder {self.cfg.embedding.model_dir} not found, please check.")
+        return embed_model
+    
+    def _embedding_filter(self, sentences: List[str]) -> List[str]:
+        if not sentences:
+            return []
+        if len(sentences) <= 2:
+            return sentences
+
+        try:
+            embs = torch.tensor(self.embed_model.embed_documents(sentences), device=self.device)
+        except Exception as e:
+            print(f"[WARN] Embedding computation failed: {e}")
+            return sentences
+        
+        if embs.ndim != 2 or embs.size(0) == 0:
+            return sentences
+
+        doc_emb = embs.mean(dim=0, keepdim=True)
+        sims = F.cosine_similarity(embs, doc_emb)
+        topk = max(1, int(len(sentences) * self.retain_ratio))
+        top_idx = sims.topk(topk).indices.tolist()
+        return [sentences[i] for i in sorted(top_idx)]
+
+    def _query_filter(self, sentences: List[str], query: str) -> List[str]:
+        
+        joined = "\n".join(f"- {s}" for s in sentences)
+        prompt = textwrap.dedent(f"""Please extract only the sentences most relevant to the question below, without rewriting them.
+                                Question: {query}
+                                Sentences:
+                                {joined}
+                                Return only the kept sentences, one per line."""
+                                )
+        
+        try:
+            response = self.llm.infer(prompt)
+            selected = [line.strip("- ").strip() for line in response.split("\n") if line.strip()]
+            return [s for s in sentences if any(sel in s for sel in selected)]
+        except Exception as e:
+            print(f"[WARN] LLM query filter failed: {e}")
+            return sentences
+
+
+    def summarize(self, documents: List[str]) -> List[str]:
+        """
+        对输入的文档列表进行抽取式压缩，返回压缩后的文档列表
+        """
+        # TODO: 实现具体的压缩逻辑
+        return documents
+    
+
+class GroupSummarization(Summarizer):
+    """ 当chunk长度不够的时候，不适合直接进行摘要，这时候可以把多个chunk进行合并，然后再进行摘要 """
+    def __init__(self, cfg):
+        self.cfg = cfg
+
+    def summarize(self, documents: List[str]) -> str:
+        """
+        对输入的文档列表进行分组摘要，返回摘要文本
+        """
