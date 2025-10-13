@@ -85,8 +85,8 @@ class OpenAILLM(LLMManager):
             else:
                 results = list(executor.map(self._call_api, all_prompts))
     
-            for answer, reason in results:
-                answers.append(answer)
-                reasons.append(reason)
+        for answer, reason in results:
+            answers.append(answer)
+            reasons.append(reason)
 
         return answers, reasons

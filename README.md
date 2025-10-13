@@ -87,3 +87,5 @@ pip install langchain sentence-transformers rouge_score fire nltk pandas joblib 
     多半是 NFS 挂载盘 或者容器里的共享目录 → 不支持 ipc://
 
     可以尝试，明确其输出socket文件到本地 `export TMPDIR=/tmp`
+7. 在使用rewriter和summarizer的时候，因为都是基于LLM进行的，具备一定的不可控性，同时tinking模型可能会出现长度限制问题
+    推荐rewriter和summarizer都使用Qwen2.5-14B-Instruct这种不thinking模式的进行操作。

@@ -154,6 +154,7 @@ class LLMQueryRewriter(QueryRewriter):
     """
     QueryRewriter: 一个可插入 RAG pipeline 的查询改写组件。
     支持 multi-query、decomposition、opposite-view 改写策略。
+    不推荐使用thinking模型。过长的thinking可能导致模型的问题改写超出长度而无法输出。
     """
     def __init__(self, llm: LLMManager):
         self.llm = llm
@@ -199,7 +200,7 @@ class LLMQueryRewriter(QueryRewriter):
             3. 至少包含 1 个 **对立/反向视角**，保证检索覆盖不同立场。
 
             要求：
-            - 保持输出的语言和原问题相同
+            - 保持输出的语言和原问题一致
             - 每个改写独立占一行
             - 不要加序号、符号或额外解释
             - 保持自然语言形式
