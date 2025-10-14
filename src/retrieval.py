@@ -17,77 +17,81 @@ from openai import OpenAI
 
 from .interfaces import Retriever, Reranker, Summarizer, LLMManager
 
+class VRConfig:
+    def __init__(self):
+        self.data = {
+            "retrieval_name": "",
+            "retrieval_store_path": "",
+            "force_rebuild": False,
+            "datastorage_tool": "chroma",
+            "data_dir_list": ["./data/chatdoctor"],
+        }
+        self.retrieval = {
+            "method": "mmr",
+            "top_k": 15,
+            "fetch_k": 60,
+            "score_threshold": 0.75,
+            "top_n": 10
+        }
+        self.embed = {
+            "provider": "hf",
+            "model_dir": "./Models/BAAI-bge-large-en-v1.5",
+            "retrival_database_batch_size": 256
+        }
+    
+    def update_4m_dict(self, config: dict):
+        self.data.update(config.get("data", {}))
+        self.retrieval.update(config.get("retrieval", {}))
+        self.embed.update(config.get("embed", {}))
+    
+
 class VectorRetriever(Retriever):
-    def __init__(self, 
-                retrieval_name: str, 
-                retrieval_store_path: str, 
-                retrieval_method: str,
-                embedding_provider: str,
-                embedding_model_dir: str,
-                data_dir_list: List[str],
-                datastorage_tool: str = "chroma",
-                top_k: int = 15,
-                fetch_k: int = 60,
-                score_threshold: float = 0.75,
-                device: str = 'cpu', 
-                force_rebuild: bool = False, 
-                retrival_database_batch_size: int = 256):
+    def __init__(self, config: VRConfig, device: str = 'cpu'):
 
         self.device = device
-        self.force_rebuild = force_rebuild
-        self.retrival_database_batch_size = retrival_database_batch_size
+        # self.force_rebuild = force_rebuild
+        # self.retrival_database_batch_size = retrival_database_batch_size
         
         # 准备相关信息，数据库名称以及保存地址
         
-        self.config = {
-            "retrieval_name": retrieval_name,
-            "retrieval_store_path": retrieval_store_path,
-            "retrieval_method": retrieval_method,
-            "datastorage_tool": datastorage_tool,
-            "embedding_provider": embedding_provider,
-            "embedding_model_dir": embedding_model_dir,
-            "data_dir_list": data_dir_list,
-            "top_k": top_k,
-            "fetch_k": fetch_k,
-            "score_threshold": score_threshold
-        }
+        self.config = config
 
-        print(f"[INFO] Retrieval name: {self.config['retrieval_name']}", f"Store path: {self.config['retrieval_store_path']}")
+        print(f"[INFO] Retrieval name: {self.config.data['retrieval_name']}", f"Store path: {self.config.data['retrieval_store_path']}")
 
         # 检查是否为BM25, 如果是，跳过向量数据库建立阶段，直接建立检索器
-        if self.config['retrieval_method'] == 'BM25':
+        if self.config.retrieval['method'] == 'BM25':
             self.database = None
             self.retriever = self._build_retriever()
-            print(f"[INFO] BM25 Retriever for {self.config['retrieval_name']} is ready!")
+            print(f"[INFO] BM25 Retriever for {self.config.data['retrieval_name']} is ready!")
             return
         
         # 如果是向量数据库模型
         # 是否强制重建
-        if self.force_rebuild and os.path.exists(self.config['retrieval_store_path']):
-            print(f"[INFO] Force rebuild {self.config['retrieval_name']}")
-            shutil.rmtree(self.config['retrieval_store_path'])
+        if self.config.data['force_rebuild'] and os.path.exists(self.config.data['retrieval_store_path']):
+            print(f"[INFO] Force rebuild {self.config.data['retrieval_name']}")
+            shutil.rmtree(self.config.data['retrieval_store_path'])
 
         # 构建向量数据库
-        if 'chroma' in self.config['datastorage_tool']:
-            self.database = self._build_chroma_database(self.config['retrieval_store_path'], self.config['retrieval_name'])
+        if 'chroma' in self.config.data['datastorage_tool']:
+            self.database = self._build_chroma_database(self.config.data['retrieval_store_path'], self.config.data['retrieval_name'])
         else:
-            raise Exception(f"Datastore {self.config['datastorage_tool']} not supported")
+            raise Exception(f"Datastore {self.config.data['datastorage_tool']} not supported")
 
         self.retriever = self._build_retriever()
-        print(f"[INFO] Retriever for {self.config['retrieval_name']} is ready!")
+        print(f"[INFO] Retriever for {self.config.data['retrieval_name']} is ready!")
 
     def _embed_model(self):
-        if self.config['embedding_provider'] == 'openai':
+        if self.config.embed['provider'] == 'openai':
             embed_model = OpenAIEmbeddings()
-        elif self.config['embedding_provider'] == 'hf':
+        elif self.config.embed['provider'] == 'hf':
             try:
                 embed_model = HuggingFaceEmbeddings(
-                    model_name=self.config['embedding_model_dir'],
+                    model_name=self.config.embed['model_dir'],
                     model_kwargs={'device': self.device},
-                    encode_kwargs={'device': self.device, 'batch_size': self.retrival_database_batch_size,"normalize_embeddings": True}
+                    encode_kwargs={'device': self.device, 'batch_size': self.config.embed["retrival_database_batch_size"], "normalize_embeddings": True}
                     )
-            except self.config['embedding_model_dir']:
-                raise Exception(f"Encoder {self.config['embedding_model_dir']} not found, please check.")
+            except self.config.embed['model_dir']:
+                raise Exception(f"Encoder {self.config.embed['model_dir']} not found, please check.")
         return embed_model
 
     def _build_chroma_database(self, retrieval_store_path: str, retrieval_name: str):
@@ -100,7 +104,7 @@ class VectorRetriever(Retriever):
         else:
             # new db
             print(f"[INFO] Building new Chroma DB: {retrieval_name}")
-            chunk_docs = get_data_chunks_by_params(self.config['data_dir_list'])
+            chunk_docs = get_data_chunks_by_params(self.config.data['data_dir_list'])
             db = Chroma.from_documents(
                 documents=chunk_docs,
                 embedding=embed_model,
@@ -110,25 +114,25 @@ class VectorRetriever(Retriever):
         return db
     
     def _build_retriever(self) -> BaseRetriever:
-        if self.config['retrieval_method'] == 'similarity_score_threshold':
+        if self.config.retrieval['method'] == 'similarity_score_threshold':
             retriever: BaseRetriever = self.database.as_retriever(
                     search_type = 'similarity_score_threshold',
-                    search_kwargs={"k": self.config["top_k"],
-                                'score_threshold': self.config['score_threshold']}  # get k, default 4
+                    search_kwargs={"k": self.config.retrieval["top_k"],
+                                'score_threshold': self.config.retrieval['score_threshold']}  # get k, default 4
                 )
-            print(f"Retriever of {self.config['retrieval_method']} is ready.")
-        elif self.config['retrieval_method'] == 'mmr':
+            print(f"Retriever of {self.config.retrieval['method']} is ready.")
+        elif self.config.retrieval['method'] == 'mmr':
             retriever: BaseRetriever = self.database.as_retriever(
                     search_type = 'mmr',
-                    search_kwargs={"k": self.config['top_k'],
-                                'fetch_k': self.config['fetch_k']}  # get k, default 4
+                    search_kwargs={"k": self.config.retrieval['top_k'],
+                                'fetch_k': self.config.retrieval['fetch_k']}  # get k, default 4
                 )
-            print(f"Retriever of {self.config['retrieval_method']} is ready.")
-        elif self.config['retrieval_method'] == 'BM25':
+            print(f"Retriever of {self.config.retrieval['method']} is ready.")
+        elif self.config.retrieval['method'] == 'BM25':
             docs = get_data_chunks(self.config)
-            retriever: BaseRetriever = BM25Retriever.from_documents(docs, k=self.config['top_k'])
+            retriever: BaseRetriever = BM25Retriever.from_documents(docs, k=self.config.retrieval['top_k'])
 
-        print(f"Retriever of {self.config['datastorage_tool']} is ready.")
+        print(f"Retriever of {self.config.data['datastorage_tool']} is ready.")
         return retriever
 
     def _ensure_list_of_str(self, x: Union[str, Iterable[str]]) -> List[str]:
@@ -163,7 +167,16 @@ class VectorRetriever(Retriever):
         return unique
 
     def retrieve(self, query: Union[List[str], List[List[str]]]) -> Tuple[List, List]:
-        """输入多个查询，返回每个查询对应的多个检索结果"""
+        """
+            输入多个查询，返回每个查询对应的多个检索结果
+            为了明确格式输入，实际上处理的为 List[List[str]]，即每个查询可能是单条字符串或多条改写
+            但是如果没有rewriter，同样支持 List[str] 作为输入，不过仍会被处理为 List[List[str]] 的格式
+            Args:
+                query: List[str] 或 List[List[str]]，每个查询可能是单条字符串或多条改写
+            Returns:
+                all_contexts: List[List[str]]，每组查询对应的多个检索结果
+                all_doc_ids: List[List[str]]，每组查询对应的多个检索结果
+        """
         all_contexts, all_doc_ids = [], []
         for q in query:
             # 统一为改写列表（可能是单条字符串或列表）
@@ -174,7 +187,6 @@ class VectorRetriever(Retriever):
             for rw in rewrites:
                 docs = self.retriever.invoke(rw)
 
-                # 支持单个 doc 或 list 返回，统一为 list
                 if docs is None:
                     docs = []
                 elif not isinstance(docs, (list, tuple)):
@@ -198,27 +210,27 @@ class VectorRetriever(Retriever):
 
 
 class RerankerManager(Reranker):
-    def __init__(self, reranker_dir: str = 'BAAI/bge-reranker-large', top_n: int = 10, device: str = 'cpu'):
+    def __init__(self, reranker_model: str = 'BAAI/bge-reranker-large', top_n: int = 10, device: str = 'cpu'):
         self.device = device
-        self.reranker_dir = reranker_dir
+        self.reranker_model = reranker_model
         self.top_n = top_n
 
         # 准备 reranker, 如果config没有，那么不应该调用reranker的生成，程序应当报错
-        if self.reranker_dir:
+        if self.reranker_model:
             # rerank the documents based on similarity score
-            self.reranker = FlagReranker(self.reranker_dir, devices=device, use_fp16=True)
-            print(f"[INFO] Reranker {self.reranker_dir} is ready!")
+            self.reranker = FlagReranker(self.reranker_model, devices=device, use_fp16=True)
+            print(f"[INFO] Reranker {self.reranker_model} is ready!")
         else:
             raise ValueError(
-                "[ERROR] No reranker specified in config. Please set `reranker_dir` to a valid model name (e.g., 'BAAI/bge-reranker-large')."
+                "[ERROR] No reranker specified in config. Please set `reranker_model` to a valid model name (e.g., 'BAAI/bge-reranker-large')."
             )
 
-    def rerank(self, docs: List[List[str]], docs_id: List[List[str]], queries: List[str]) -> List[List[str]]:
+    def rerank(self, docs: List[List[str]], docs_id: List[List[str]], queries: List[List[str]]) -> List[List[str]]:
         """
         输入:
-            queries: 查询列表
             docs: 每个查询对应的文档内容列表 [["content1", "content2", ...], ...]
             docs_id: 每个查询对应的文档 ID 列表 [["id1", "id2", ...], ...]
+            queries: 查询列表，同样是列表的列表 [["query1"],["query2"],...]
         输出:
             reranked_docs: 每个查询对应的重排后文档内容列表
             reranked_doc_ids: 每个查询对应的重排后文档 ID 列表
@@ -230,13 +242,13 @@ class RerankerManager(Reranker):
 
         for query, doc_list, doc_id_list in zip(queries, docs, docs_id):
             if not doc_list:
-                print(f"Warning: No documents to rerank for query: {query}")
+                print(f"Warning: No documents to rerank for query: {query[0] if query else 'N/A'}")
                 all_reranked_docs.append([])
                 all_reranked_doc_ids.append([])
                 continue
 
             # 生成 (query, doc_content) 对用于打分
-            pairs = [(query, content) for content in doc_list]
+            pairs = [(query[0], content) for content in doc_list]
 
             # 计算得分
             scores = self.reranker.compute_score(pairs)
@@ -362,9 +374,13 @@ class LLMHybridSummarization(Summarizer):
         return extracted
 
 
-    def summarize(self, documents: List[List[str]], queries: List[str]) -> List[str]:
+    def summarize(self, documents: List[List[str]], queries: List[List[str]]) -> List[List[str]]:
         """
-        对输入的文档列表进行抽取式压缩，返回压缩后的文档列表
+            对输入的文档列表进行抽取式压缩，返回压缩后的文档列表
+            这里的格式为：
+            documents: List[List[str]]，每个查询对应的文档内容列表 [["content1", "content2", ...], ...]
+            queries: List[List[str]]，每个查询对应的查询内容列表 [["query1"],["query2"],...]
+            返回: List[List[str]]，每个查询对应的压缩后文档内容列表 [["sum_content1","sum_content2", ...], ...]
         """
 
         if not documents:
@@ -381,6 +397,6 @@ class LLMHybridSummarization(Summarizer):
         query_filtered = []
         for sentense_list, query in zip(sentenses, queries):
             embed_filtered.append(self._embedding_filter(sentense_list))
-            query_filtered.append(self._query_filter(embed_filtered[-1], query))
+            query_filtered.append(self._query_filter(embed_filtered[-1], query[0]))
 
         return query_filtered

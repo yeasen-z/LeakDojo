@@ -222,7 +222,7 @@ class LLMQueryRewriter(QueryRewriter):
         rewrites = self._clean_output(raw_output, n_variants)
 
         return {
-            "original_query": question,
+            "original_query": [question],
             "rewritten_queries": rewrites,
             "all_queries": [question] + rewrites
         }
@@ -237,24 +237,27 @@ class LLMQueryRewriter(QueryRewriter):
             max_workers: 最大并发线程数（建议 ≤ 你的 vLLM 实例能承受的并发）
 
         Returns:
-            List[Dict]: 每个问题的改写结果（保持输入顺序）
+            Dict 包含：
+            - original_query: List[List[str]] 原始问题列表
+            - rewritten_queries: List[List[str]] 每个原始问题对应的改写列表
+            - all_queries: List[List[str]] 每个原始问题及其改写的合集
         """
 
         if len(questions) == 1:
             # 单个问题，无需并发
-            return [self._rewrite_single(questions[0], n_variants)]
-        
-        # 使用 map 并发调用 _rewrite_single
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # 构造参数：每个元素是 (question, n_variants)
-            # 由于 _rewrite_single 只接受一个 question 和固定 n_variants，
-            # 我们可以用 lambda 或 functools.partial
-            rw_results = list(
-                executor.map(
-                    lambda q: self._rewrite_single(q, n_variants),
-                    questions
+            rw_results = [self._rewrite_single(questions[0], n_variants)]
+        else:
+            # 使用 map 并发调用 _rewrite_single
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # 构造参数：每个元素是 (question, n_variants)
+                # 由于 _rewrite_single 只接受一个 question 和固定 n_variants，
+                # 我们可以用 lambda 或 functools.partial
+                rw_results = list(
+                    executor.map(
+                        lambda q: self._rewrite_single(q, n_variants),
+                        questions
+                    )
                 )
-            )
 
         original_queries = [r["original_query"] for r in rw_results]
         rewritten_queries_list = [r["rewritten_queries"] for r in rw_results]  # list of list
@@ -270,11 +273,11 @@ class LLMQueryRewriter(QueryRewriter):
 class SimplePromptConstructor(PromptConstructor):
     """最基础的 Prompt 构建器：将上下文拼接成完整提示词"""
 
-    def __init__(self):
+    def __init__(self, prefixs: List[str] = ["context: ", "question: ", "answer:"], chunk_adhesive: str = "\n", prompt_adhesive: str = "\n\n"):
         # 一般配置中包含：
-        self.prefix = ["context: ", "question: ", "answer:"]
-        self.chunk_adhesive = "\n\n"
-        self.prompt_adhesive = "\n\n"
+        self.prefix = prefixs
+        self.chunk_adhesive = chunk_adhesive
+        self.prompt_adhesive = prompt_adhesive
 
     def construct(self, query: str, contexts: list) -> str:
         """

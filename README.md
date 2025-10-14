@@ -89,3 +89,4 @@ pip install langchain sentence-transformers rouge_score fire nltk pandas joblib 
     可以尝试，明确其输出socket文件到本地 `export TMPDIR=/tmp`
 7. 在使用rewriter和summarizer的时候，因为都是基于LLM进行的，具备一定的不可控性，同时tinking模型可能会出现长度限制问题
     推荐rewriter和summarizer都使用Qwen2.5-14B-Instruct这种不thinking模式的进行操作。
+    如果没有使用reranker，那么实际上rewriter发挥的作用可能很小，所以期望rewriter一定和reranker一起使用

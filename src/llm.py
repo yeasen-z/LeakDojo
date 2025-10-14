@@ -80,10 +80,12 @@ class OpenAILLM(LLMManager):
         )
 
         with ThreadPoolExecutor(max_workers=50) as executor:
-            if reasoning_mode:
-                results = list(executor.map(self._call_api_with_reasoning, all_prompts))
-            else:
-                results = list(executor.map(self._call_api, all_prompts))
+            # if reasoning_mode:
+            #     results = list(executor.map(self._call_api_with_reasoning, all_prompts))
+            # else:
+            #     results = list(executor.map(self._call_api, all_prompts))
+            results = list(executor.map(self.infer, all_prompts))
+
     
         for answer, reason in results:
             answers.append(answer)

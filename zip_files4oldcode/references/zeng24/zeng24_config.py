@@ -83,9 +83,8 @@ class Zeng24fiqa(VectorBaseConfig):
         # model_name = "./Models/Qwen2.5-1.5B-Instruct",
         # model_name = "./Models/Qwen2.5-3B-Instruct",
         # model_name = "./Models/Qwen2.5-7B-Instruct",
-        # model_name = "./Models/Qwen2.5-14B-Instruct",
+        model_name = "./Models/Qwen2.5-14B-Instruct",
         # model_name = "./Models/Qwen2.5-32B-Instruct",
-        model_name = "./Models/Qwen3-14B",
         # model_name = "./Models/gemma-3-12b-it",
         # model_name = "./Models/gemma-3-27b-it",
         # model_name= "./Models/Qwen3-32B",
@@ -109,21 +108,21 @@ class Zeng24fiqa(VectorBaseConfig):
         # # rerank = "./Models/ms-marco-MiniLM-L6-v2",
         # # rerank=None,
         # adhesive = "\n\n",
-        params={
-            "k": 15,
-            "n": 10,
-            "fetch_k": 40
-        },
+        # params={
+        #     "k": 10,
+        #     "n": 3,
+        #     "fetch_k": 40
+        # }
 
         # method="similarity_score_threshold",
 
         rerank = 'BAAI/bge-reranker-large',
         adhesive = "\n\n",
-        # params={
-        #     "k": 15,
-        #     "n": 10,
-        #     "score_threshold": 0.5
-        # }
+        params={
+            "k": 15,
+            "n": 10,
+            "score_threshold": 0.5
+        }
     )
 
 
