@@ -355,10 +355,17 @@ class LLMHybridSummarization(Summarizer):
     
         for s in sentences:
             prompt = textwrap.dedent(f"""
-                Please extract the most important information for the question from the sentence below, do not rewrite it unless it is necessary.
+                Extract only the text spans from the sentence that contain key information relevant to the question.
                 Question: {query}
                 Sentence: {s}
-                Do not remove any numbers, percentages, units, or dates. Return all numerical information as-is. Do NOT add any introductory words, explanations, or formatting.
+
+                Guidelines:
+                - Copy text exactly from the sentence whenever possible; do not paraphrase unless absolutely necessary for clarity.
+                - Return all numerical information (numbers, percentages, units, and dates) exactly as they appear.
+                - Include factual and conceptual details that directly answer the question.
+                - Omit unrelated or background information.
+                - If no relevant information is found, return "None".
+                - If multiple relevant parts exist, separate them with semicolons. Do NOT add explanations, commentary, or formatting.
             """)
             
             try:

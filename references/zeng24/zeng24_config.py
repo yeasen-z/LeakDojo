@@ -1,4 +1,4 @@
-from configs.base_vector import *
+from configs.config_base import *
 
 @dataclass
 class Zeng24ChatDoctor(VectorBaseConfig):

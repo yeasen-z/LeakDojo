@@ -1,6 +1,7 @@
 from references import zeng24_config, zeng24_question
 from src.retrieval import VRConfig, VectorRetriever, RerankerManager, LLMHybridSummarization
 from src.prompts import LLMQueryRewriter, SimplePromptConstructor
+from config import database_desc
 from src.llm import OpenAILLM
 import argparse
 import os
@@ -62,9 +63,16 @@ def setup(cfg, args):
     })
 
     # 初始化
-    llm = OpenAILLM(model = args.llm_model, base_url = args.llm_base_url, api_key = args.llm_api_key, reasoning= args.reasoning)
+    llm = OpenAILLM(model = args.llm_model, 
+                    base_url = args.llm_base_url, 
+                    api_key = args.llm_api_key, 
+                    reasoning= args.reasoning,
+                    temperature=args.llm_temperature,
+                    top_p=args.llm_top_p,
+                    max_gen_len=args.llm_max_gen_len,
+                    max_workers=50)
 
-    query_rewriter = LLMQueryRewriter(llm)
+    query_rewriter = LLMQueryRewriter(llm,database_desc)
 
     retriever = VectorRetriever(retriever_config, device=args.device)
     if cfg.retrieval.rerank:
@@ -111,6 +119,8 @@ def main():
             original_queries = queries_rws["original_query"]
             rewritten_queries_list = queries_rws["rewritten_queries"]
             all_queries_list = queries_rws["all_queries"]
+
+            save_helper["rewritten_queries"].append(rewritten_queries_list)
         else:
             original_queries = [query]
             rewritten_queries_list = [[None]]
@@ -129,6 +139,7 @@ def main():
 
         if args.summarizer:
             summarized_contexts = summarizer.summarize(contexts, original_queries)
+            save_helper["sum_contexts"].append(summarized_contexts)
         else:
             summarized_contexts = contexts
 
@@ -137,13 +148,11 @@ def main():
         answers, reasons = llm.batch_infer(prompt)
 
         save_helper["queries"].append(original_queries)
-        save_helper["rewritten_queries"].append(rewritten_queries_list)
         save_helper["contexts"].append(contexts)
         save_helper["doc_ids"].append(doc_ids)
         save_helper["prompts"].append(prompt)
         save_helper["answers"].append(answers)
         save_helper["reasons"].append(reasons)
-        save_helper["sum_contexts"].append(summarized_contexts)
 
     # output_dir = get_llm_output_file(cfg)
     # os.makedirs(output_dir, exist_ok=True)

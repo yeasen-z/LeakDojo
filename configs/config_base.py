@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, Any, List
 import os
+import re
 
 @dataclass
 class vDataStorageConfig:
@@ -104,13 +105,27 @@ class VectorBaseConfig:
     @property
     def expconfig(self) -> vExpConfig:
         """动态生成实验输出目录"""
-        dataset = os.path.basename(self.datastorage.data_name)  # chatdoctor
-        store = self.datastorage.tool                           # vector-chroma
-        embed = self.embedding.model_name.replace(".","_")                       # bge-large-en-v1.5  -> bge-large-en-v1_5
-        llm = os.path.basename(self.llm.model_name).replace(".","_")             # Llama-2-13b-chat-hf
+
+        def sanitize_filename(name: str) -> str:
+            """
+            将字符串中不适合用于文件路径的字符替换为下划线。
+            """
+            # 替换所有非法字符： / \ : * ? " < > | 和 空格
+            return re.sub(r'[\\/:\*\?"<>\|\s]+', '_', name.strip())
+        
+        # dataset = os.path.basename(self.datastorage.data_name)  # chatdoctor
+        dataset = sanitize_filename(os.path.basename(self.datastorage.data_name))
+        # store = self.datastorage.tool                           # vector-chroma
+        store = sanitize_filename(self.datastorage.tool)
+        # embed = self.embedding.model_name.replace(".","_")                       # bge-large-en-v1.5  -> bge-large-en-v1_5
+        embed = sanitize_filename(self.embedding.model_name.replace(".", "_"))
+        # llm = os.path.basename(self.llm.model_name).replace(".","_")             # Llama-2-13b-chat-hf
+        llm = sanitize_filename(os.path.basename(self.llm.model_name).replace(".", "_"))
         k = self.retrieval.params.get("k", 2)                                    # 2
-        retrieved_method = self.retrieval.method
-        reranker = self.retrieval.rerank if self.retrieval.rerank else "no-rerank"
+        # retrieved_method = self.retrieval.method
+        retrieved_method = sanitize_filename(self.retrieval.method)
+        # reranker = self.retrieval.rerank if self.retrieval.rerank else "no-rerank"
+        reranker = sanitize_filename(self.retrieval.rerank if self.retrieval.rerank else "no-rerank")
 
         save_dir = f"./exp/{dataset}/{store}/{embed}-{llm}/{retrieved_method}-{k}-{reranker}/"
         return vExpConfig(output_dir=save_dir)
