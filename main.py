@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument("--attack", type=str, choices=["iter", "bbqg", "wbtq"], default="bbqg", help="Whether to use attack for query generation")
     parser.add_argument("--entity_file", type=str, default=None, help="Path to the entity file for better BBQG and iter attack")
     parser.add_argument("--attack_num", type=int, default=500, help="Number of attack queries to generate")
-    parser.add_argument("--batch_size", type=int, default=10, help="Batch size for processing queries")
+    parser.add_argument("--batch_size", type=int, default=50, help="Batch size for processing queries")
     
     return parser.parse_args()
 
@@ -71,7 +71,8 @@ def chunked(iterable, batch_size):
     for i in range(0, len(iterable), batch_size):
         yield iterable[i:i + batch_size]
 
-def run_static(args):
+def run_static_1by1(args):
+    """静态攻击实验流程，保证组件的每一步输出，都是list[list[str]]格式"""
     cfg = getattr(configs, args.cfg_name) if hasattr(configs, args.cfg_name) else None
     if cfg is None:
         raise ValueError(f"Config {args.cfg_name} not found.")
@@ -130,8 +131,8 @@ def run_static(args):
             contexts, doc_ids  = reranker.rerank(contexts, doc_ids, query)
             # 返回格式为 List[List[str]]
         else:
-            contexts = [i[:cfg.retrieval.params.get("n", 10)] for i in contexts]
-            doc_ids = [i[:cfg.retrieval.params.get("n", 10)] for i in doc_ids]
+            contexts = [i[:cfg.retrieval["top_n"]] for i in contexts]
+            doc_ids = [i[:cfg.retrieval["top_n"]] for i in doc_ids]
             # 返回格式为 List[List[str]]
 
         if args.summarizer:
@@ -162,6 +163,7 @@ def run_static(args):
         
         
 def run_static_batch(args):
+    """静态攻击实验流程，保证组件的每一步输出，都是list[list[str]]格式"""
     cfg = getattr(configs, args.cfg_name) if hasattr(configs, args.cfg_name) else None
     if cfg is None:
         raise ValueError(f"Config {args.cfg_name} not found.")
@@ -205,8 +207,6 @@ def run_static_batch(args):
             original_queries = queries_rws["original_query"]
             rewritten_queries_list = queries_rws["rewritten_queries"]
             all_queries_list = queries_rws["all_queries"]
-
-            save_helper["rewritten_queries"].extend(rewritten_queries_list)
         else:
             original_queries = [[i] for i in batch_queries]
             rewritten_queries_list = [[None]]
@@ -219,13 +219,12 @@ def run_static_batch(args):
             contexts, doc_ids  = reranker.rerank(contexts, doc_ids, batch_queries)
             # 返回格式为 List[List[str]]
         else:
-            contexts = [i[:cfg.retrieval.params.get("n", 10)] for i in contexts]
-            doc_ids = [i[:cfg.retrieval.params.get("n", 10)] for i in doc_ids]
+            contexts = [i[:cfg.retrieval["top_n"]] for i in contexts]
+            doc_ids = [i[:cfg.retrieval["top_n"]] for i in doc_ids]
             # 返回格式为 List[List[str]]
 
         if args.summarizer:
             summarized_contexts = summarizer.summarize(contexts, original_queries)
-            save_helper["sum_contexts"].extend(summarized_contexts)
         else:
             summarized_contexts = contexts
 
@@ -238,6 +237,10 @@ def run_static_batch(args):
         save_helper["prompts"].extend(prompt)
         save_helper["answers"].extend(answers)
         save_helper["reasons"].extend(reasons)
+        if args.rewriter:
+            save_helper["rewritten_queries"].extend(rewritten_queries_list)
+        if args.summarizer:
+            save_helper["sum_contexts"].extend(summarized_contexts)
 
     output_dir = cfg.generate_expconfig(args.llm_model)
     os.makedirs(output_dir, exist_ok=True)
