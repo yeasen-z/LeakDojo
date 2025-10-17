@@ -1,8 +1,7 @@
 from .interfaces import QueryGenerator, QueryRewriter, PromptConstructor, LLMManager
-from configs import VectorBaseConfig
 from concurrent.futures import ThreadPoolExecutor
 from openai import OpenAI
-from typing import List, Tuple
+from typing import List, Tuple, Union
 import random
 import numpy as np
 import json
@@ -164,15 +163,27 @@ class BlackBoxQueryGenerator(QueryGenerator):
 class WhiteBoxQueryLoader(QueryGenerator):
     """白盒静态的问题加载器，从本地文件加载问题"""
 
-    def __init__(self, filepath: str, min_len: int = 20, max_len: int = 250, attack_num: int = 500):
+    def __init__(self, filepath: Union[str, List[str]], min_len: int = 20, max_len: int = 250, attack_num: int = 500):
         self.filepath = filepath
         self.attack_num = attack_num
         self.min_len = min_len
         self.max_len = max_len
+    
+    def _load_and_filter(self, filepath: str) -> List[str]:
+        questions = []
+        with open(filepath, "r", encoding="utf-8") as f:
+            for line in f:
+                doc = json.loads(line)
+                questions.append(doc["text"])
+        return questions
 
     def generate(self) -> List[str]:
-        with open(self.filepath, "r", encoding="utf-8") as f:
-            questions = f.readlines()
+        if isinstance(self.filepath, list):
+            questions = []
+            for fp in self.filepath:
+                questions.extend(self._load_and_filter(fp))
+        else:
+            questions = self._load_and_filter(self.filepath)
         
         # 过滤掉过短或过长的问题
         filtered = [
@@ -180,8 +191,8 @@ class WhiteBoxQueryLoader(QueryGenerator):
             if self.min_len <= len(q.strip()) <= self.max_len
         ]
 
-        if self.sample_size is not None and len(filtered) > self.sample_size:
-            filtered = random.sample(filtered, self.sample_size)
+        if len(filtered) > self.attack_num:
+            filtered = random.sample(filtered, self.attack_num)
 
         return filtered
 

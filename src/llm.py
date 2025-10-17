@@ -4,10 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 from openai import OpenAI
 from typing import List
 from abc import ABC
-from configs import VectorBaseConfig
 
 from .interfaces import LLMManager
-from .utils import get_llm_output_file
 
 
 MODELS_THINKING_SUPPORT = ["Qwen3-4B", "Qwen3-8B", "Qwen3-14B", "Qwen3-32B"]

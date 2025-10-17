@@ -8,41 +8,41 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 # from longchain_chroma import Chroma
 from langchain_community.retrievers import BM25Retriever
-from configs import VectorBaseConfig
+from configs import VRConfig
 import re
 import torch.nn.functional as F
 import textwrap
-from .utils import get_retrieval_info, get_data_chunks, get_data_chunks_by_params
+from .utils import get_data_chunks_by_params
 from openai import OpenAI
 
 from .interfaces import Retriever, Reranker, Summarizer, LLMManager
 
-class VRConfig:
-    def __init__(self):
-        self.data = {
-            "retrieval_name": "",
-            "retrieval_store_path": "",
-            "force_rebuild": False,
-            "datastorage_tool": "chroma",
-            "data_dir_list": ["./data/chatdoctor"],
-        }
-        self.retrieval = {
-            "method": "mmr",
-            "top_k": 15,
-            "fetch_k": 60,
-            "score_threshold": 0.75,
-            "top_n": 10
-        }
-        self.embed = {
-            "provider": "hf",
-            "model_dir": "./Models/BAAI-bge-large-en-v1.5",
-            "retrival_database_batch_size": 256
-        }
+# class VRConfig:
+#     def __init__(self):
+#         self.data = {
+#             "retrieval_name": "",
+#             "retrieval_store_path": "",
+#             "force_rebuild": False,
+#             "datastorage_tool": "chroma",
+#             "data_dir_list": ["./data/chatdoctor"],
+#         }
+#         self.retrieval = {
+#             "method": "mmr",
+#             "top_k": 15,
+#             "fetch_k": 60,
+#             "score_threshold": 0.75,
+#             "top_n": 10
+#         }
+#         self.embed = {
+#             "provider": "hf",
+#             "model_dir": "./Models/BAAI-bge-large-en-v1.5",
+#             "retrival_database_batch_size": 256
+#         }
     
-    def update_4m_dict(self, config: dict):
-        self.data.update(config.get("data", {}))
-        self.retrieval.update(config.get("retrieval", {}))
-        self.embed.update(config.get("embed", {}))
+#     def update_4m_dict(self, config: dict):
+#         self.data.update(config.get("data", {}))
+#         self.retrieval.update(config.get("retrieval", {}))
+#         self.embed.update(config.get("embed", {}))
     
 
 class VectorRetriever(Retriever):
@@ -81,17 +81,17 @@ class VectorRetriever(Retriever):
         print(f"[INFO] Retriever for {self.config.data['retrieval_name']} is ready!")
 
     def _embed_model(self):
-        if self.config.embed['provider'] == 'openai':
+        if self.config.retrieval["embed"]['provider'] == 'openai':
             embed_model = OpenAIEmbeddings()
-        elif self.config.embed['provider'] == 'hf':
+        elif self.config.retrieval["embed"]['provider'] == 'hf':
             try:
                 embed_model = HuggingFaceEmbeddings(
-                    model_name=self.config.embed['model_dir'],
+                    model_name=self.config.retrieval["embed"]['model_dir'],
                     model_kwargs={'device': self.device},
-                    encode_kwargs={'device': self.device, 'batch_size': self.config.embed["retrival_database_batch_size"], "normalize_embeddings": True}
+                    encode_kwargs={'device': self.device, 'batch_size': self.config.retrieval["embed"]["retrival_database_batch_size"], "normalize_embeddings": True}
                     )
-            except self.config.embed['model_dir']:
-                raise Exception(f"Encoder {self.config.embed['model_dir']} not found, please check.")
+            except self.config.retrieval["embed"]['model_dir']:
+                raise Exception(f"Encoder {self.config.retrieval['embed']['model_dir']} not found, please check.")
         return embed_model
 
     def _build_chroma_database(self, retrieval_store_path: str, retrieval_name: str):
@@ -129,7 +129,7 @@ class VectorRetriever(Retriever):
                 )
             print(f"Retriever of {self.config.retrieval['method']} is ready.")
         elif self.config.retrieval['method'] == 'BM25':
-            docs = get_data_chunks(self.config)
+            docs = get_data_chunks_by_params(self.config.data['data_dir_list'])
             retriever: BaseRetriever = BM25Retriever.from_documents(docs, k=self.config.retrieval['top_k'])
 
         print(f"Retriever of {self.config.data['datastorage_tool']} is ready.")
@@ -324,6 +324,7 @@ class LLMHybridSummarization(Summarizer):
                     model_kwargs={'device': self.device},
                     encode_kwargs={'device': self.device, 'batch_size': self.embed_batch_size,"normalize_embeddings": True}
                     )
+                print(f"[INFO] Summarizer embedding model {self.embed_model_dir} loaded successfully.")
             except self.embed_model_dir:
                 raise Exception(f"Encoder {self.embed_model_dir} not found, please check.")
         return embed_model

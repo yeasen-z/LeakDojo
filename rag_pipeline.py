@@ -1,12 +1,10 @@
-from references import zeng24_config, zeng24_question
-from src.retrieval import VRConfig, VectorRetriever, RerankerManager, LLMHybridSummarization
-from src.prompts import LLMQueryRewriter, SimplePromptConstructor
-from config import database_desc
+from src.retrieval import VectorRetriever, RerankerManager, LLMHybridSummarization
+from src.prompts import LLMQueryRewriter, SimplePromptConstructor, BlackBoxQueryGenerator, WhiteBoxQueryLoader
 from src.llm import OpenAILLM
 import argparse
 import os
 import json
-from src.utils import get_retrieval_info, get_data_chunks, get_data_chunks_by_params, get_llm_output_file
+import configs
 
 
 def parse_args():
@@ -14,11 +12,10 @@ def parse_args():
 
     # 基础输入
     parser.add_argument("--device", type=str, default="cuda:1")
-    parser.add_argument("--cfg_name", type=str, default="Zeng24fiqa")
+    parser.add_argument("--cfg_name", type=str, default="fiqa", help="Config name in configs/")
 
     # retrieval
     parser.add_argument("--force_rebuild", action="store_true", help="Force rebuild retrieval database")
-
 
     # LLM
     parser.add_argument("--llm_model", type=str, default="./Models/Qwen3-14B")
@@ -37,31 +34,6 @@ def parse_args():
     return parser.parse_args()
 
 def setup(cfg, args):
-    # Retrieval
-    retrieval_name, retrieval_store_path = get_retrieval_info(cfg)
-
-    retriever_config = VRConfig()
-    retriever_config.update_4m_dict({
-        "data": {
-                "retrieval_name": retrieval_name,
-                "retrieval_store_path": retrieval_store_path,
-                "force_rebuild": args.force_rebuild,
-                "datastorage_tool": "chroma",
-                "data_dir_list": cfg.datastorage.raw_data_dir,
-            },
-        "retrieval": {
-                "method": cfg.retrieval.method,
-                "top_k": cfg.retrieval.params.get("k", 15),
-                "fetch_k": cfg.retrieval.params.get("fetch_k", 60),
-                "score_threshold": cfg.retrieval.params.get("score_threshold", 0.75),
-                "top_n": cfg.retrieval.params.get("n", 10)
-            },
-        "embed": {
-                "provider": cfg.embedding.provider,
-                "model_dir": cfg.embedding.model_dir
-            }
-    })
-
     # 初始化
     llm = OpenAILLM(model = args.llm_model, 
                     base_url = args.llm_base_url, 
@@ -72,27 +44,27 @@ def setup(cfg, args):
                     max_gen_len=args.llm_max_gen_len,
                     max_workers=50)
 
-    query_rewriter = LLMQueryRewriter(llm,database_desc)
+    query_rewriter = LLMQueryRewriter(llm, cfg.data["description"])
 
-    retriever = VectorRetriever(retriever_config, device=args.device)
-    if cfg.retrieval.rerank:
-        reranker = RerankerManager(reranker_model=cfg.retrieval.rerank, top_n=retriever_config.retrieval['top_n'], device=args.device)
+    retriever = VectorRetriever(cfg, device=args.device)
+    if cfg.reranker["model"]:
+        reranker = RerankerManager(reranker_model=cfg.reranker["model"], top_n=cfg.retrieval['top_n'], device=args.device)
     else:
         reranker = None
 
     if args.rewriter and not args.reranker:
         print("[NOTING] Query rewriting is enabled but Reranker is disabled. It's recommended to use Query Rewriter with Reranker for better performance.")
-    
-    summarizer = LLMHybridSummarization(llm, embed_provider=cfg.embedding.provider, embed_model_dir=cfg.embedding.model_dir, device='cuda:1')    
+
+    summarizer = LLMHybridSummarization(llm, embed_provider=cfg.summarizer["provider"], embed_model_dir=cfg.summarizer["model"], device='cuda:1')
     prompt_constructor = SimplePromptConstructor()
 
     return llm, query_rewriter, retriever, reranker, summarizer, prompt_constructor
 
 
-def main():
-    args = parse_args()
-
-    cfg = getattr(zeng24_config, args.cfg_name)() if hasattr(zeng24_config, args.cfg_name) else None
+def run_static(args):
+    cfg = getattr(configs, args.cfg_name) if hasattr(configs, args.cfg_name) else None
+    if cfg is None:
+        raise ValueError(f"Config {args.cfg_name} not found.")
 
     llm, query_rewriter, retriever, reranker, summarizer, prompt_constructor = setup(cfg, args)
 
@@ -110,8 +82,8 @@ def main():
         "reasons": []
     }
 
-    for query in queries:
-        print(f"Processing query: {query}")
+    for i, query in enumerate(queries):
+        print(f"Processing query {i + 1}/{len(queries)}: {query}")
 
         if args.rewriter:
             queries_rws = query_rewriter.rewrite([query], n_variants=5)
@@ -146,6 +118,7 @@ def main():
         print(f"Generating the prompt of {query}...")
         prompt = prompt_constructor.batch_construct([query], summarized_contexts)
         answers, reasons = llm.batch_infer(prompt)
+        print(f"Answer: {answers[0][0:40]}...")
 
         save_helper["queries"].append(original_queries)
         save_helper["contexts"].append(contexts)
@@ -154,19 +127,10 @@ def main():
         save_helper["answers"].append(answers)
         save_helper["reasons"].append(reasons)
 
-    # output_dir = get_llm_output_file(cfg)
-    # os.makedirs(output_dir, exist_ok=True)
-    # save_path = os.path.join(output_dir, get_llm_output_file(cfg))
-    # with open(save_path, "w", encoding="utf-8") as f_a:
-    #     json.dump(save_helper, f_a, ensure_ascii=False, indent=2)
-
-    output_dir = cfg.expconfig.output_dir
-    os.makedirs(output_dir, exist_ok=True)
-
-    save_path = os.path.join(output_dir, "all_save_helper.json")
-    print(f"Saving results to {save_path}")
-    with open(save_path, "w", encoding="utf-8") as f:
+    print(f"Saving results to ./all_save_helpers.json")
+    with open("./all_save_helpers.json", "w", encoding="utf-8") as f:
         json.dump(save_helper, f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    run_static(args)

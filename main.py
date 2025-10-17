@@ -1,12 +1,10 @@
-from references import zeng24_config, zeng24_question
-from src.retrieval import VRConfig, VectorRetriever, RerankerManager, LLMHybridSummarization
+from src.retrieval import VectorRetriever, RerankerManager, LLMHybridSummarization
 from src.prompts import LLMQueryRewriter, SimplePromptConstructor, BlackBoxQueryGenerator, WhiteBoxQueryLoader
 from src.llm import OpenAILLM
 import argparse
 import os
 import json
-from src.utils import get_retrieval_info, get_data_chunks, get_data_chunks_by_params, get_llm_output_file
-from configs.fiqa import database_desc
+import configs
 
 
 def parse_args():
@@ -14,7 +12,7 @@ def parse_args():
 
     # 基础输入
     parser.add_argument("--device", type=str, default="cuda:1")
-    parser.add_argument("--cfg_name", type=str, default="Zeng24fiqa")
+    parser.add_argument("--cfg_name", type=str, default="fiqa", help="Config name in configs/")
 
     # retrieval
     parser.add_argument("--force_rebuild", action="store_true", help="Force rebuild retrieval database")
@@ -37,35 +35,11 @@ def parse_args():
     parser.add_argument("--attack", type=str, choices=["iter", "bbqg", "wbtq"], default="bbqg", help="Whether to use attack for query generation")
     parser.add_argument("--entity_file", type=str, default=None, help="Path to the entity file for better BBQG and iter attack")
     parser.add_argument("--attack_num", type=int, default=500, help="Number of attack queries to generate")
-
+    parser.add_argument("--batch_size", type=int, default=10, help="Batch size for processing queries")
+    
     return parser.parse_args()
 
 def setup(cfg, args):
-    # Retrieval
-    retrieval_name, retrieval_store_path = get_retrieval_info(cfg)
-
-    retriever_config = VRConfig()
-    retriever_config.update_4m_dict({
-        "data": {
-                "retrieval_name": retrieval_name,
-                "retrieval_store_path": retrieval_store_path,
-                "force_rebuild": args.force_rebuild,
-                "datastorage_tool": "chroma",
-                "data_dir_list": cfg.datastorage.raw_data_dir,
-            },
-        "retrieval": {
-                "method": cfg.retrieval.method,
-                "top_k": cfg.retrieval.params.get("k", 15),
-                "fetch_k": cfg.retrieval.params.get("fetch_k", 60),
-                "score_threshold": cfg.retrieval.params.get("score_threshold", 0.75),
-                "top_n": cfg.retrieval.params.get("n", 10)
-            },
-        "embed": {
-                "provider": cfg.embedding.provider,
-                "model_dir": cfg.embedding.model_dir
-            }
-    })
-
     # 初始化
     llm = OpenAILLM(model = args.llm_model, 
                     base_url = args.llm_base_url, 
@@ -76,35 +50,38 @@ def setup(cfg, args):
                     max_gen_len=args.llm_max_gen_len,
                     max_workers=50)
 
-    query_rewriter = LLMQueryRewriter(llm, database_desc)
+    query_rewriter = LLMQueryRewriter(llm, cfg.data["description"])
 
-    retriever = VectorRetriever(retriever_config, device=args.device)
-    if cfg.retrieval.rerank:
-        reranker = RerankerManager(reranker_model=cfg.retrieval.rerank, top_n=retriever_config.retrieval['top_n'], device=args.device)
+    retriever = VectorRetriever(cfg, device=args.device)
+    if cfg.reranker["model"]:
+        reranker = RerankerManager(reranker_model=cfg.reranker["model"], top_n=cfg.retrieval['top_n'], device=args.device)
     else:
         reranker = None
 
     if args.rewriter and not args.reranker:
         print("[NOTING] Query rewriting is enabled but Reranker is disabled. It's recommended to use Query Rewriter with Reranker for better performance.")
-    
-    summarizer = LLMHybridSummarization(llm, embed_provider=cfg.embedding.provider, embed_model_dir=cfg.embedding.model_dir, device='cuda:1')    
+
+    summarizer = LLMHybridSummarization(llm, embed_provider=cfg.summarizer["provider"], embed_model_dir=cfg.summarizer["model"], device='cuda:1')
     prompt_constructor = SimplePromptConstructor()
 
     return llm, query_rewriter, retriever, reranker, summarizer, prompt_constructor
 
-
+def chunked(iterable, batch_size):
+    """把列表按 batch_size 分块"""
+    for i in range(0, len(iterable), batch_size):
+        yield iterable[i:i + batch_size]
 
 def run_static(args):
-    cfg = getattr(zeng24_config, args.cfg_name)() if hasattr(zeng24_config, args.cfg_name) else None
+    cfg = getattr(configs, args.cfg_name) if hasattr(configs, args.cfg_name) else None
     if cfg is None:
         raise ValueError(f"Config {args.cfg_name} not found.")
 
     llm, query_rewriter, retriever, reranker, summarizer, prompt_constructor = setup(cfg, args)
 
     if args.attack == "bbqg":
-        query_generator = BlackBoxQueryGenerator(database_desc, llm, attack_num=args.attack_num, existed_entity_file=args.entity_file)
+        query_generator = BlackBoxQueryGenerator(cfg.data["description"], llm, attack_num=args.attack_num, existed_entity_file=args.entity_file)
     elif args.attack == "wbtq":
-        query_generator = WhiteBoxQueryLoader(cfg.wbtq_filepath, attack_num=args.attack_num)
+        query_generator = WhiteBoxQueryLoader(cfg.data["wbtq_filepath"], attack_num=args.attack_num)
 
     # 生成query，并保存在存储位置，这里需要考虑这些攻击方法是不同的，所以最好分开实现
     if args.attack == "bbqg":
@@ -113,7 +90,7 @@ def run_static(args):
         print(f"[INFO] Total {len(queries)} queries generated by {args.attack} method.")
     elif args.attack == "wbtq":
         queries = query_generator.generate()
-        print(f"[INFO] Total {len(queries)} queries loaded by {args.attack} method from {cfg.wbtq_filepath}.")
+        print(f"[INFO] Total {len(queries)} queries loaded by {args.attack} method from {cfg.data['wbtq_filepath']}.")
     else:
         raise ValueError(f"Attack method {args.attack} not supported.")
 
@@ -138,10 +115,11 @@ def run_static(args):
             original_queries = queries_rws["original_query"]
             rewritten_queries_list = queries_rws["rewritten_queries"]
             all_queries_list = queries_rws["all_queries"]
+            # 返回格式都是 List[List[str]]
 
-            save_helper["rewritten_queries"].append(rewritten_queries_list)
+            save_helper["rewritten_queries"].extend(rewritten_queries_list)
         else:
-            original_queries = [query]
+            original_queries = [[query]]
             rewritten_queries_list = [[None]]
             all_queries_list = [[query]] # 如果只有一层的话，那么retriever会将这一组重写得到的query当成多组query来处理
 
@@ -158,7 +136,7 @@ def run_static(args):
 
         if args.summarizer:
             summarized_contexts = summarizer.summarize(contexts, original_queries)
-            save_helper["sum_contexts"].append(summarized_contexts)
+            save_helper["sum_contexts"].extend(summarized_contexts)
         else:
             summarized_contexts = contexts
 
@@ -167,17 +145,104 @@ def run_static(args):
         answers, reasons = llm.batch_infer(prompt)
         print(f"Answer: {answers[0][0:40]}...")
 
-        save_helper["queries"].append(original_queries)
-        save_helper["contexts"].append(contexts)
-        save_helper["doc_ids"].append(doc_ids)
-        save_helper["prompts"].append(prompt)
-        save_helper["answers"].append(answers)
-        save_helper["reasons"].append(reasons)
+        save_helper["queries"].extend([query])
+        save_helper["contexts"].extend(contexts)
+        save_helper["doc_ids"].extend(doc_ids)
+        save_helper["prompts"].extend(prompt)
+        save_helper["answers"].extend(answers)
+        save_helper["reasons"].extend(reasons)
 
-    output_dir = cfg.expconfig.output_dir
+    output_dir = cfg.generate_expconfig(args.llm_model)
     os.makedirs(output_dir, exist_ok=True)
 
-    save_path = os.path.join(output_dir, "all_save_helper.json")
+    save_path = os.path.join(output_dir, cfg.generate_expfilename(args))
+    print(f"Saving results to {save_path}")
+    with open(save_path, "w", encoding="utf-8") as f:
+        json.dump(save_helper, f, ensure_ascii=False, indent=2)
+        
+        
+def run_static_batch(args):
+    cfg = getattr(configs, args.cfg_name) if hasattr(configs, args.cfg_name) else None
+    if cfg is None:
+        raise ValueError(f"Config {args.cfg_name} not found.")
+
+    llm, query_rewriter, retriever, reranker, summarizer, prompt_constructor = setup(cfg, args)
+
+    if args.attack == "bbqg":
+        query_generator = BlackBoxQueryGenerator(cfg.data["description"], llm, attack_num=args.attack_num, existed_entity_file=args.entity_file)
+    elif args.attack == "wbtq":
+        query_generator = WhiteBoxQueryLoader(cfg.data["wbtq_filepath"], attack_num=args.attack_num)
+
+    # 生成query，并保存在存储位置，这里需要考虑这些攻击方法是不同的，所以最好分开实现
+    if args.attack == "bbqg":
+        queries = query_generator.generate()
+        query_generator.save_entities(os.path.join("./attack_shop/entity_custom", "bbqg_generated_entities.json"))
+        print(f"[INFO] Total {len(queries)} queries generated by {args.attack} method.")
+    elif args.attack == "wbtq":
+        queries = query_generator.generate()
+        print(f"[INFO] Total {len(queries)} queries loaded by {args.attack} method from {cfg.data['wbtq_filepath']}.")
+    else:
+        raise ValueError(f"Attack method {args.attack} not supported.")
+
+    # 暂存数据结果
+    save_helper = {
+        "queries": [],
+        "rewritten_queries": [],
+        "contexts": [],
+        "doc_ids": [],
+        "sum_contexts": [],
+        "prompts": [],
+        "answers": [],
+        "reasons": []
+    }
+
+    for batch_idx, batch_queries in enumerate(chunked(queries, args.batch_size)):
+        print(f"Processing batch {batch_idx}/{len(queries) // args.batch_size}: {batch_queries}")
+
+        if args.rewriter:
+            queries_rws = query_rewriter.rewrite(batch_queries, n_variants=5)
+
+            original_queries = queries_rws["original_query"]
+            rewritten_queries_list = queries_rws["rewritten_queries"]
+            all_queries_list = queries_rws["all_queries"]
+
+            save_helper["rewritten_queries"].extend(rewritten_queries_list)
+        else:
+            original_queries = [[i] for i in batch_queries]
+            rewritten_queries_list = [[None]]
+            all_queries_list = [[i] for i in batch_queries] # 如果只有一层的话，那么retriever会将这一组重写得到的query当成多组query来处理
+
+        contexts, doc_ids = retriever.retrieve(all_queries_list)
+        # 返回格式为 List[List[str]]
+
+        if args.reranker:
+            contexts, doc_ids  = reranker.rerank(contexts, doc_ids, batch_queries)
+            # 返回格式为 List[List[str]]
+        else:
+            contexts = [i[:cfg.retrieval.params.get("n", 10)] for i in contexts]
+            doc_ids = [i[:cfg.retrieval.params.get("n", 10)] for i in doc_ids]
+            # 返回格式为 List[List[str]]
+
+        if args.summarizer:
+            summarized_contexts = summarizer.summarize(contexts, original_queries)
+            save_helper["sum_contexts"].extend(summarized_contexts)
+        else:
+            summarized_contexts = contexts
+
+        prompt = prompt_constructor.batch_construct(batch_queries, summarized_contexts)
+        answers, reasons = llm.batch_infer(prompt)
+
+        save_helper["queries"].extend(batch_queries)
+        save_helper["contexts"].extend(contexts)
+        save_helper["doc_ids"].extend(doc_ids)
+        save_helper["prompts"].extend(prompt)
+        save_helper["answers"].extend(answers)
+        save_helper["reasons"].extend(reasons)
+
+    output_dir = cfg.generate_expconfig(args.llm_model)
+    os.makedirs(output_dir, exist_ok=True)
+
+    save_path = os.path.join(output_dir, cfg.generate_expfilename(args))
     print(f"Saving results to {save_path}")
     with open(save_path, "w", encoding="utf-8") as f:
         json.dump(save_helper, f, ensure_ascii=False, indent=2)
@@ -185,6 +250,7 @@ def run_static(args):
 if __name__ == "__main__":
     args = parse_args()
     if args.attack in ["bbqg", "wbtq"]:
-        run_static(args)
+        # run_static(args)
+        run_static_batch(args)
     else:
         pass
