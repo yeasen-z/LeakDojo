@@ -49,10 +49,10 @@ pip install langchain sentence-transformers rouge_score fire nltk pandas joblib 
     }
     ```
 2. vllm设置vllm_parallel_size参数的时候，一定要注意attn head数要能够被整除，否则会出错
-    - 
-3. 运行的时候，尽量使用环境限制语句指定GPU id，如下
+    
+3. 运行的时候，尽量使用环境限制语句指定GPU id，用来限定embedding模型的加载位置，如下
     ```bash
-        CUDA_VISIBLE_DEVICES=4,5,6,7 python main.py --mode inference
+        CUDA_VISIBLE_DEVICES=1 python main.py ...
     ```
 4. 启动vllm模型服务，使用openai的接口\
     - 非think模型：
@@ -75,6 +75,7 @@ pip install langchain sentence-transformers rouge_score fire nltk pandas joblib 
             --enable-reasoning \
             --reasoning-parser deepseek_r1
     ```
+    - 更多的可以在`scripts/`路径下参考脚本
 5. 在slurm上启动vllm服务
     - 查看scripts中的脚本
     - 如果遇到查询不到slurm命令，那么运行"bash -l"
@@ -87,6 +88,53 @@ pip install langchain sentence-transformers rouge_score fire nltk pandas joblib 
     多半是 NFS 挂载盘 或者容器里的共享目录 → 不支持 ipc://
 
     可以尝试，明确其输出socket文件到本地 `export TMPDIR=/tmp`
-7. 在使用rewriter和summarizer的时候，因为都是基于LLM进行的，具备一定的不可控性，同时tinking模型可能会出现长度限制问题
-    推荐rewriter和summarizer都使用Qwen2.5-14B-Instruct这种不thinking模式的进行操作。
-    如果没有使用reranker，那么实际上rewriter发挥的作用可能很小，所以期望rewriter一定和reranker一起使用
+7. 如果没有使用reranker，那么实际上rewriter发挥的作用可能很小，所以期望rewriter一定和reranker一起使用
+
+## 代码结构
+
+### 参考指令
+1. 运行主流程（bbqg + rewriter + reranker + summarizer）
+    ```
+    python main.py \
+    --device cuda:1 \
+    --cfg_name fiqa \
+    --llm_model ./Models/Qwen2.5-14B-Instruct \
+    --llm_base_url http://localhost:22999/v1 \
+    --llm_api_key EMPTY \
+    --attack bbqg --attack_num 500 --batch_size 50 \
+    --rewriter --reranker
+    ```
+2. 运行主流程（wbtq，只做检索与回答）
+    ```
+    python main.py \
+    --device cuda:1 \
+    --cfg_name fiqa \
+    --llm_model ./Models/Qwen2.5-14B-Instruct \
+    --llm_base_url http://localhost:22999/v1 \
+    --llm_api_key EMPTY \
+    --attack wbtq --attack_num 200 --batch_size 50
+    ```
+
+### 说明
+
+1. 实验设置保存在`configs/`文件路径下：
+    - data: data_dir_list, description（影响改写/实体生成质量）
+    - retrieval: method(top_k/fetch_k/score_threshold/top_n), embed.provider/model_dir
+    - reranker.model 设置重排模型
+2. 代码基于 vLLM server服务，服务需预先启动。详见 “注意事项”。主文件的LLM连接参数如下
+    - --llm_model 模型名或本地路径
+    - --llm_base_url OpenAI/vLLM 兼容地址
+    - --llm_api_key API Key（本地 vLLM 常用占位值）
+    - 生成控制：--llm_temperature, --llm_top_p, --llm_max_gen_len
+
+
+
+
+### wbtq
+
+采用[BEIR](https://github.com/beir-cellar/beir)的结构，可直接使用其公开数据集
+
+### bbqg
+
+### iter
+

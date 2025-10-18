@@ -153,7 +153,7 @@ class SimplePromptConstructor(PromptConstructor):
             f"{united_context}"
             f"{self.prompt_adhesive}"
             f"{self.prefix[1]}"
-            f"{query}"+f"{self.adversarial_suffix}"
+            f"{query}{self.adversarial_suffix}"
             f"{self.prompt_adhesive}"
             f"{self.prefix[2]}"
         )
@@ -163,3 +163,11 @@ class SimplePromptConstructor(PromptConstructor):
     def batch_construct(self, queries: List[str], contexts: List[List[str]]) -> List[str]:
         """批量构建多个 prompt"""
         return [self.construct(q, c) for q, c in zip(queries, contexts)]
+
+    def query_with_adversarial_suffix(self, query: str) -> str:
+        """仅为查询添加对抗后缀, 用来获取检索上下文"""
+        return f"{query}{self.adversarial_suffix}"
+
+    def batch_query_with_adversarial_suffix(self, queries: List[str]) -> List[str]:
+        """批量为查询添加对抗后缀"""
+        return [self.query_with_adversarial_suffix(q) for q in queries]

@@ -1,8 +1,9 @@
 from typing import List, Dict
 import os
 from langchain.schema import Document
-from configs import VRConfig
 import json
+from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 def load_corpus(paths: List[str]):
     """加载 BEIR corpus.jsonl"""
@@ -50,32 +51,6 @@ def get_data_chunks_by_params(data_paths: List[str]):
 
     return chunk_docs
 
-def get_queries(cfg: VRConfig, suffix: str, query_file: str = "queries.jsonl"):
-    # load queries in beir format
-    data_paths = []  # add multiple dataset
-    for path in cfg.data["raw_data_dir"]:
-        data_paths.append(os.path.join(path, query_file))
-    queries = []
-    for data_path in data_paths:
-        with open(data_path, "r", encoding="utf-8") as f:
-            for line in f:
-                doc = json.loads(line)
-                queries.append(doc["text"] + suffix)
-    return queries
-
-def get_queries_id(cfg: VRConfig):
-    # load queries in beir format
-    data_paths = []  # add multiple dataset
-    for path in cfg.data["raw_data_dir"]:
-        data_paths.append(os.path.join(path, "queries.jsonl"))
-    queries_id = []
-    for data_path in data_paths:
-        with open(data_path, "r", encoding="utf-8") as f:
-            for line in f:
-                doc = json.loads(line)
-                queries_id.append(doc["_id"])
-    return queries_id
-
 def load_save_helper(file_path: str) -> Dict:
 
     # 假设文件名为 data.json
@@ -83,3 +58,18 @@ def load_save_helper(file_path: str) -> Dict:
         data = json.load(f)
 
     return data
+
+
+def get_embed_model(embed_provider, embed_model_dir, retrival_database_batch_size=32, device="cuda:1"):
+    if embed_provider == 'openai':
+        embed_model = OpenAIEmbeddings()
+    elif embed_provider == 'hf':
+        try:
+            embed_model = HuggingFaceEmbeddings(
+                model_name=embed_model_dir,
+                model_kwargs={'device': device},
+                encode_kwargs={'device': device, 'batch_size': retrival_database_batch_size, "normalize_embeddings": True}
+                )
+        except ValueError:
+            raise Exception(f"Encoder {embed_model_dir} not found, please check.")
+    return embed_model
