@@ -1,4 +1,3 @@
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 from nltk.tokenize import RegexpTokenizer
 from rouge_score import rouge_scorer
 from typing import List, Dict, Any

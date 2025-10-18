@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import List, Tuple, Union, Iterable
 import os, shutil, torch
 from FlagEmbedding import FlagReranker
@@ -6,55 +5,20 @@ from langchain.schema import BaseRetriever
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
-# from longchain_chroma import Chroma
 from langchain_community.retrievers import BM25Retriever
 from configs import VRConfig
 import re
 import torch.nn.functional as F
 import textwrap
 from .utils import get_data_chunks_by_params
-from openai import OpenAI
 
 from .interfaces import Retriever, Reranker, Summarizer, LLMManager
-
-# class VRConfig:
-#     def __init__(self):
-#         self.data = {
-#             "retrieval_name": "",
-#             "retrieval_store_path": "",
-#             "force_rebuild": False,
-#             "datastorage_tool": "chroma",
-#             "data_dir_list": ["./data/chatdoctor"],
-#         }
-#         self.retrieval = {
-#             "method": "mmr",
-#             "top_k": 15,
-#             "fetch_k": 60,
-#             "score_threshold": 0.75,
-#             "top_n": 10
-#         }
-#         self.embed = {
-#             "provider": "hf",
-#             "model_dir": "./Models/BAAI-bge-large-en-v1.5",
-#             "retrival_database_batch_size": 256
-#         }
-    
-#     def update_4m_dict(self, config: dict):
-#         self.data.update(config.get("data", {}))
-#         self.retrieval.update(config.get("retrieval", {}))
-#         self.embed.update(config.get("embed", {}))
-    
 
 class VectorRetriever(Retriever):
     def __init__(self, config: VRConfig, device: str = 'cpu'):
 
-        self.device = device
-        # self.force_rebuild = force_rebuild
-        # self.retrival_database_batch_size = retrival_database_batch_size
-        
-        # 准备相关信息，数据库名称以及保存地址
-        
         self.config = config
+        self.device = device
 
         print(f"[INFO] Retrieval name: {self.config.data['retrieval_name']}", f"Store path: {self.config.data['retrieval_store_path']}")
 

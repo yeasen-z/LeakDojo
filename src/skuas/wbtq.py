@@ -1,6 +1,8 @@
+from src.interfaces import QueryGenerator
+from typing import List, Union
 import json
-from src.interfaces import QueryGenerator, QueryRewriter, PromptConstructor, LLMManager
-from typing import List, Tuple, Union
+import random
+
 
 class WhiteBoxQueryLoader(QueryGenerator):
     """白盒静态的问题加载器，从本地文件加载问题"""

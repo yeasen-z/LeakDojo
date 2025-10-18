@@ -1,7 +1,7 @@
-from src.retrieval import VectorRetriever, RerankerManager, LLMHybridSummarization
-from src.prompts import LLMQueryRewriter, SimplePromptConstructor, WhiteBoxQueryLoader
-from src.skuas.bbqg import BlackBoxQueryGenerator
-from src.llm import OpenAILLM
+from src import VectorRetriever, RerankerManager, LLMHybridSummarization
+from src import LLMQueryRewriter, SimplePromptConstructor
+from src import BlackBoxQueryGenerator, WhiteBoxQueryLoader
+from src import OpenAILLM
 import argparse
 import os
 import json

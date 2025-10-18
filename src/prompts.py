@@ -1,10 +1,6 @@
-from .interfaces import QueryGenerator, QueryRewriter, PromptConstructor, LLMManager
+from .interfaces import QueryRewriter, PromptConstructor, LLMManager
 from concurrent.futures import ThreadPoolExecutor
-from openai import OpenAI
-from typing import List, Tuple, Union
-import random
-import numpy as np
-import json
+from typing import List
 import textwrap
 import re
 

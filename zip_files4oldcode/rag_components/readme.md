@@ -1,5 +1,0 @@
-data_retrieval: 创建数据检索库
-prompts_generator: 根据模板生成对应的问题，包含检索得到的rag数据
-llm_local_inference: huggingface本地模型推理
-llm_api_inference: 调用各种api进行推理
-

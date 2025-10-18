@@ -1,8 +1,8 @@
 from .retrieval import VectorRetriever, RerankerManager, LLMHybridSummarization
-from .prompts import LLMQueryRewriter, SimplePromptConstructor, WhiteBoxQueryLoader
+from .prompts import LLMQueryRewriter, SimplePromptConstructor
 from .llm import OpenAILLM
 
 
 
 
-from .skuas.bbqg import BlackBoxQueryGenerator
+from .skuas import BlackBoxQueryGenerator, WhiteBoxQueryLoader

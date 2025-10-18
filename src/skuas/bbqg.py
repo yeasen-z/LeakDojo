@@ -1,12 +1,9 @@
-from src.interfaces import QueryGenerator, QueryRewriter, PromptConstructor, LLMManager
-from concurrent.futures import ThreadPoolExecutor
-from openai import OpenAI
-from typing import List, Tuple, Union
+from src.interfaces import QueryGenerator, LLMManager
+from typing import List
 import random
 import numpy as np
 import json
 import textwrap
-import re
 
 BBQ_TEMPLATES = {
     "A": [  # 定义 / 特征类
