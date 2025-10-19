@@ -81,8 +81,9 @@ class VRConfig:
         retrieved_method = sanitize_filename(self.retrieval["method"])
         reranker_mdl = sanitize_filename(os.path.basename(self.reranker["model"]).replace(".", "_"))
         summarizer_mdl = sanitize_filename(os.path.basename(self.summarizer["model"]).replace(".", "_"))
-
-        save_dir = f"./exp/{dataset}-{store}/{embed}-{llm}/{retrieved_method}-{k}-{reranker_mdl}-{n}/{summarizer_mdl}/"
+        time_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_tag = hashlib.md5(f"{time_str}".encode()).hexdigest()[:6]
+        save_dir = f"./exp/{dataset}-{store}/{embed}-{llm}/{retrieved_method}-{k}-{reranker_mdl}-{n}/{summarizer_mdl}/{unique_tag}/"
         return save_dir
 
     def generate_expfilename(self, args=None, ext=".json"):
@@ -100,13 +101,13 @@ class VRConfig:
         summarizer = getattr(args, "summarizer", False)
 
         # === 唯一标识（时间戳 + 哈希） ===
-        time_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        unique_tag = hashlib.md5(f"{attack}_{time_str}".encode()).hexdigest()[:6]
+        # time_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        # unique_tag = hashlib.md5(f"{attack}_{time_str}".encode()).hexdigest()[:6]
 
         # === 文件名组合 ===
         filename = (
             f"rewr-{rewriter}_rerank-{reranker}_sum-{summarizer}_"
-            f"{attack}_{time_str}_{unique_tag}{ext}"
+            f"{attack}{ext}"
         )
 
         return filename

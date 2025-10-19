@@ -2,7 +2,7 @@ from src import VectorRetriever, RerankerManager, LLMHybridSummarization
 from src import LLMQueryRewriter, SimplePromptConstructor
 from src import BlackBoxQueryGenerator, WhiteBoxQueryLoader
 from src import OpenAILLM
-from src import RougeEvaluator, LiteralEvaluator, EmbeddingEvaluator
+from src import RougeEvaluator, LiteralEvaluator, EmbeddingEvaluator, CrossEncoderEvaluator
 from src import get_embed_model
 import argparse
 import os
@@ -169,17 +169,31 @@ def evaluate_results(save_path):
         data = json.load(f)
     
     embed_model = get_embed_model("hf", "./Models/BAAI-bge-large-en-v1.5")
-    roge05, roge08, ltre30, embde08 = RougeEvaluator(0.5), RougeEvaluator(0.8), LiteralEvaluator(30), EmbeddingEvaluator(embed_model, 0.8)
+    roge05, roge08, ltre50, embde08 = RougeEvaluator(0.5), RougeEvaluator(0.8), LiteralEvaluator(50), EmbeddingEvaluator(embed_model, 0.8)
+    cee08 = CrossEncoderEvaluator(device="cuda:1")
 
     rouge_scores_05 = roge05.evaluate(data["doc_ids"], data["answers"], data["contexts"])
-    rouge_scores_08 = roge08.evaluate(data["doc_ids"], data["answers"], data["contexts"])
-    literal_scores_30 = ltre30.evaluate(data["doc_ids"], data["answers"], data["contexts"])
-    embedding_scores_08 = embde08.evaluate(data["doc_ids"], data["answers"], data["contexts"])
-    print("=== Evaluation Results ===")
     print(f"Rouge-L@0.5: {rouge_scores_05}")
+    rouge_scores_08 = roge08.evaluate(data["doc_ids"], data["answers"], data["contexts"])
     print(f"Rouge-L@0.8: {rouge_scores_08}")
-    print(f"Literal Match@30: {literal_scores_30}")
+    literal_scores_50 = ltre50.evaluate(data["doc_ids"], data["answers"], data["contexts"])
+    print(f"Literal Match@50: {literal_scores_50}")
+    embedding_scores_08 = embde08.evaluate(data["doc_ids"], data["answers"], data["contexts"])
     print(f"Embedding Similarity@0.8: {embedding_scores_08}")
+    cross_encoder_scores_08 = cee08.evaluate_slidewindow(data["doc_ids"], data["answers"], data["contexts"])
+    print(f"Cross Encoder Similarity@0.8: {cross_encoder_scores_08}")
+
+    # 将这些结果保存到文件中
+    eval_save_path = save_path.replace(".json", "_eval.json")
+    with open(eval_save_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "Rouge-L@0.5": rouge_scores_05,
+            "Rouge-L@0.8": rouge_scores_08,
+            "Literal Match@50": literal_scores_50,
+            "Embedding Similarity@0.8": embedding_scores_08,
+            "Cross Encoder Similarity@0.8": cross_encoder_scores_08
+        }, f, ensure_ascii=False, indent=2)
+    print(f"Saved evaluation results to {eval_save_path}")
 
 if __name__ == "__main__":
 
@@ -191,6 +205,7 @@ if __name__ == "__main__":
     
     if args.attack in ["bbqg", "wbtq"]:
         save_path = run_static(cfg, args)
+        # save_path = "./exp/fiqa-chroma/bge-large-en-v1_5-Qwen3-14B/mmr-15-bge-reranker-large-10/BAAI-bge-large-en-v1_5/ffb89c/rewr-False_rerank-True_sum-False_wbtq.json"
         evaluate_results(save_path)
     else:
         pass
