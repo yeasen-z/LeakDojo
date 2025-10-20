@@ -12,6 +12,14 @@ fiqa = VRConfig(
                 "intro": "a financial sentiment analysis benchmark derived from real-world sources such as StockTwits posts and financial news headlines.it enables models to understand market sentiment and investor opinions in financial contexts."
             }
         },
+        "tool_llm": {
+            "model": "./Models/Qwen3-14B",
+            "base_url": "http://localhost:22999/v1",
+            "api_key": "EMPTY",
+            "reasoning": True,
+            "temperature": 0.7,
+            "top_p": 0.8
+        },
         "retrieval": {
             "method": "mmr",
             "top_k": 15,

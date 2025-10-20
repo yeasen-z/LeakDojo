@@ -41,7 +41,11 @@ class OpenAILLM(LLMManager):
             top_p=self.top_p,
             max_tokens=self.max_gen_len,
         )
-        return response.choices[0].message.content.strip()
+
+        content = getattr(response.choices[0].message, "content", "") or ""
+        if content == "":
+            print("Warning: empty answer from LLM.")
+        return content.strip()
 
     def _call_api_with_reasoning(self, prompt: str):
         """带 reasoning_content 的模型调用"""
@@ -55,7 +59,7 @@ class OpenAILLM(LLMManager):
 
         content = getattr(response.choices[0].message, "content", "") or ""
         reasoning = getattr(response.choices[0].message, "reasoning_content", "") or ""
-
+        # print("Length of reasoning content:", len(reasoning.split()))
         return content.strip(), reasoning.strip()
 
     def infer(self, prompt: str) -> str:

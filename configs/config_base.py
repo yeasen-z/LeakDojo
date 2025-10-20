@@ -17,6 +17,13 @@ class VRConfig:
                 "intro": "a financial sentiment analysis benchmark derived from real-world sources such as StockTwits posts and financial news headlines.it enables models to understand market sentiment and investor opinions in financial contexts."
             }
         }
+        self.tool_llm = {
+            "model": "./Models/Qwen3-14B",
+            "base_url": "http://localhost:22999/v1",
+            "api_key": "EMPTY",
+            "temperature": 0.7,
+            "top_p": 0.8
+        }
         self.retrieval = {
             "method": "mmr",
             "top_k": 15,
@@ -63,6 +70,7 @@ class VRConfig:
     
     def update_4m_dict(self, config: dict):
         self.data.update(config.get("data", {}))
+        self.tool_llm.update(config.get("tool_llm", {}))
         self.retrieval.update(config.get("retrieval", {}))
         self.reranker.update(config.get("reranker", {}))
         self.summarizer.update(config.get("summarizer", {}))
@@ -111,83 +119,3 @@ class VRConfig:
         )
 
         return filename
-
-# @dataclass
-# class vDataStorageConfig:
-#     data_name: str = "fiqa"
-#     raw_data_dir: List[str] = field(default_factory=List)
-#     tool: str = "vector-chroma"  # # "vector-chroma"
-
-# @dataclass
-# class vEmbeddingConfig:
-#     provider: str = "hf"  # "hf" | "openai"
-#     model_name: str = "bge-large-en-v1.5",
-#     model_dir: str = "BAAI/bge-large-en-v1.5"
-
-# @dataclass
-# class vRetrievalConfig:
-#     method: str = "similarity_score_threshold"  # "similarity_score_threshold" | "mmr"
-#     rerank: str = 'BAAI/bge-reranker-large'
-#     adhesive: str = "\n\n"
-#     params: Dict[str, Any] = field(default_factory=lambda: {
-#         "k": 10,
-#         "n": 3,
-#         "score_threshold": 0.75
-#     })
-
-
-# @dataclass
-# class vExpConfig:
-#     output_dir: str = "./exp/demo/"
-
-
-# @dataclass
-# class VectorBaseConfig:
-#     datastorage: vDataStorageConfig = vDataStorageConfig(
-#         data_name = "chatdoctor",
-#         raw_data_dir = ["./data/chatdoctor"],
-#         tool = "vector-chroma"
-#     )
-#     embedding: vEmbeddingConfig = vEmbeddingConfig(
-#         provider="hf",
-#         model_name = "all-MiniLM-L6-v2",
-#         model_dir = "all-MiniLM-L6-v2"
-#     )
-#     retrieval: vRetrievalConfig = vRetrievalConfig(
-#         method = "mmr",
-#         rerank = None,
-#         adhesive = "\n\n",
-#         params = {
-#             "k": 10,
-#             "n": 3,
-#             "fetch_k": 40
-#         }
-#     )
-
-#     @property
-#     def expconfig(self) -> vExpConfig:
-#         """动态生成实验输出目录"""
-
-#         def sanitize_filename(name: str) -> str:
-#             """
-#             将字符串中不适合用于文件路径的字符替换为下划线。
-#             """
-#             # 替换所有非法字符： / \ : * ? " < > | 和 空格
-#             return re.sub(r'[\\/:\*\?"<>\|\s]+', '_', name.strip())
-        
-#         # dataset = os.path.basename(self.datastorage.data_name)  # chatdoctor
-#         dataset = sanitize_filename(os.path.basename(self.datastorage.data_name))
-#         # store = self.datastorage.tool                           # vector-chroma
-#         store = sanitize_filename(self.datastorage.tool)
-#         # embed = self.embedding.model_name.replace(".","_")                       # bge-large-en-v1.5  -> bge-large-en-v1_5
-#         embed = sanitize_filename(self.embedding.model_name.replace(".", "_"))
-#         # llm = os.path.basename(self.llm.model_name).replace(".","_")             # Llama-2-13b-chat-hf
-#         llm = sanitize_filename(os.path.basename(self.llm.model_name).replace(".", "_"))
-#         k = self.retrieval.params.get("k", 2)                                    # 2
-#         # retrieved_method = self.retrieval.method
-#         retrieved_method = sanitize_filename(self.retrieval.method)
-#         # reranker = self.retrieval.rerank if self.retrieval.rerank else "no-rerank"
-#         reranker = sanitize_filename(self.retrieval.rerank if self.retrieval.rerank else "no-rerank")
-
-#         save_dir = f"./exp/{dataset}/{store}/{embed}-{llm}/{retrieved_method}-{k}-{reranker}/"
-#         return vExpConfig(output_dir=save_dir)

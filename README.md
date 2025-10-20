@@ -102,6 +102,7 @@ pip install langchain sentence-transformers rouge_score fire nltk pandas joblib 
     --llm_base_url http://localhost:22999/v1 \
     --llm_api_key EMPTY \
     --attack bbqg --attack_num 500 --batch_size 50 \
+    --entity_file ./attack_shop/entity_base/FinTech.json \
     --rewriter --reranker
     ```
 2. 运行主流程（wbtq，只做检索与回答）
