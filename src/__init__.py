@@ -5,4 +5,4 @@ from .scoring import RougeEvaluator, LiteralEvaluator, EmbeddingEvaluator, Cross
 from .utils import get_embed_model
 
 
-from .skuas import BlackBoxQueryGenerator, WhiteBoxQueryLoader#, IKEAQueryIterator
+from .skuas import BlackBoxQueryGenerator, WhiteBoxQueryLoader, IKEAQueryGenerator

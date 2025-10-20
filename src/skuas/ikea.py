@@ -1,84 +1,194 @@
 """
-Edited from https://github.com/Wangyuhao06/IKEA
+IKEA-style query generator adapted to this project's framework.
+
+Key changes vs upstream:
+- Aligns to src.interfaces.QueryGenerator and LLMManager (string prompt I/O)
+- Uses src.utils.get_embed_model (LangChain HuggingFaceEmbeddings)
+- Removes undefined dependencies (MutationAttacker, gpt_generator, token counters, pandas I/O)
+- Replaces sentence-transformers encode() calls with embed_documents/embed_query
+- Provides a simple generate() that returns a list of questions
 """
-import torch
-from torch import Tensor
-from typing import List, Dict, Union, Callable
-from langchain_huggingface import HuggingFaceEmbeddings
-import tqdm
-from tqdm import tqdm
-import pandas as pd
-from copy import deepcopy
-import tiktoken
-import numpy as np
-from typing import List, Dict, Optional, Callable, Tuple
-from collections import defaultdict, Counter
-import re, json
-import torch.nn.functional as F
+
+import json
 import random
-from pathlib import Path
-import sys
-from src.interfaces import QueryGenerator, LLMManager
-from src import get_embed_model
+import re
+from collections import Counter
+from copy import deepcopy
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
-# all-mpnet-base-v2
+import numpy as np
+import torch
+import torch.nn.functional as F
+from torch import Tensor
+from tqdm import tqdm
 
-class IKEAQueryIterator(QueryGenerator):
-    def __init__(self, 
-                 embed_mdl_name: str,
-                 llm: LLMManager,
-                 topic:str,
-                 prompt_formatter: Callable,
-                 device:str = "cuda"):
-        self.embedding_model = get_embed_model("hf", embed_mdl_name)
-        self.embedding_dim = len(self.embedding_model.embed_query("test"))
+from src.interfaces import LLMManager, QueryGenerator
+from src.utils import get_embed_model
+
+def chunked_matmul(A: Tensor, B: Tensor, step: int, show_progress: bool = False) -> Tensor:
+    """Matrix multiply with chunking on rows(A) to reduce memory usage."""
+    n = len(A)
+    results: List[Tensor] = []
+    lbs = tqdm(range(0, n, step)) if show_progress else range(0, n, step)
+    for lb in lbs:
+        ub = min(n, lb + step)
+        results.append(torch.matmul(A[lb:ub], B))
+    return torch.cat(results, dim=0) if results else torch.empty((0, B.size(1)), device=A.device, dtype=A.dtype)
+
+def text_similarity(model, text_0: str, text_1: str) -> Tensor:
+    """Compute cosine similarity between two texts using the embedder's query encoder."""
+    e0 = torch.tensor(model.embed_query(text_0), dtype=torch.float32)
+    e1 = torch.tensor(model.embed_query(text_1), dtype=torch.float32)
+    e0 = F.normalize(e0, p=2, dim=-1)
+    e1 = F.normalize(e1, p=2, dim=-1)
+    return torch.dot(e0, e1)
+
+def text_similarity_matrix(model, text_0: List[str], text_1: List[str], batch_size: int = 64) -> Tensor:
+    """Compute pairwise cosine similarity matrix using embed_documents for batching."""
+    # embed_documents expects list[str]
+    e0 = torch.tensor(model.embed_documents(text_0), dtype=torch.float32)
+    e1 = torch.tensor(model.embed_documents(text_1), dtype=torch.float32)
+    e0 = F.normalize(e0, p=2, dim=-1)
+    e1 = F.normalize(e1, p=2, dim=-1)
+    return chunked_matmul(e0, e1.T, batch_size)
+
+def find_unsimilar_texts(
+    model,
+    texts: List[str],
+    thresh: Optional[float] = None,
+    n_preserve: Optional[int] = None,
+    batch_size: int = 64,
+    return_idx: bool = False,
+) -> Union[List[str], Tuple[List[str], List[int]]]:
+    """
+    Find a subset of texts that are not too similar to each other.
+
+    Args:
+        model: embedding model (HuggingFaceEmbeddings)
+        texts: list of texts to process
+        thresh: if specified, remove entries where similarity exceeds this threshold
+        n_preserve: if specified, preserve top n most unsimilar entries
+        batch_size: batch size for similarity computation
+        return_idx: whether to return indices instead of texts
+
+    Returns:
+        list of selected texts or indices
+    """
+    assert (thresh is None) ^ (n_preserve is None), "Specify only one of `thresh` or `n_preserve`."
+    
+    n = len(texts)
+    keep = torch.ones(n, dtype=torch.bool)
+
+    # Encode all texts
+    embeddings = torch.tensor(model.embed_documents(texts), dtype=torch.float32)
+    embeddings = F.normalize(embeddings, p=2, dim=-1)
+
+    # Compute self-similarity
+    similarities = chunked_matmul(embeddings, embeddings.T, batch_size)
+
+    if n_preserve is not None:
+        n_removed = n - n_preserve
+        sim_sum = similarities.sum(dim=0)
+        for _ in range(n_removed):
+            remove_idx = int(torch.argmax(sim_sum))
+            keep[remove_idx] = False
+            sim_sum[remove_idx] = 0
+            sim_sum -= similarities[remove_idx]
+
+    if thresh is not None:
+        adj_mat = (similarities - torch.eye(n)) >= thresh
+        degrees = adj_mat.sum(dim=0)
+        while torch.any(degrees > 0):
+            remove_idx = int(torch.argmax(degrees))
+            keep[remove_idx] = False
+            degrees[remove_idx] = 0
+            degrees -= adj_mat[remove_idx].to(dtype=degrees.dtype)
+
+    selected_texts = [t for t, k in zip(texts, keep) if k]
+    if return_idx:
+        return selected_texts, torch.nonzero(keep, as_tuple=True)[0].cpu().tolist()
+    return selected_texts
+
+
+class IKEAQueryGenerator(QueryGenerator):
+    """A lightweight IKEA-style QueryGenerator.
+
+    Responsibilities:
+    - Manage an anchor-word pool via LLM
+    - Turn anchor words into broad questions compatible with the pipeline
+    - Provide optional utilities for similarity filtering
+    """
+
+    def __init__(
+        self,
+        description: Dict,
+        llm: LLMManager,
+        embed_mdl_name: str = "sentence-transformers/all-mpnet-base-v2",
+        topic: Optional[str] = None,
+        adversarial_suffix: str = "",
+        device: str = "cpu",
+    ):
+        self.description = description
+        self.topic = topic or description.get("topic") or description.get("intro", "general")
         self.llm = llm
         self.device = device
-        self.topic = topic
-        
-        # query db setting
-        self.full_query_db = []
+
+        # embeddings
+        self.embedding_model = get_embed_model("hf", embed_mdl_name)
+        self.embedding_dim = len(self.embedding_model.embed_query("test"))
+
+        # simple pools and stats
+        self.full_query_db: List[str] = []
         self.full_query_db_added_mask = np.array([], dtype=bool)
-        self.queries = []
+        self.queries: List[str] = []
         self.query_valid_mask = np.array([], dtype=bool)
-        self.anchor_words_counts = dict()
-        
-        # prompt formatter
-        self.prompt_formatter = prompt_formatter
-        self.adaptive_prompt_formatter = self.generate_question_with_keyword
-        
-        # Core data storage
+        self.anchor_words_counts: Dict[str, int] = {}
+
+        # storage for similarity utilities (optional)
         self.prompts: List[str] = []
         self.answers: List[str] = []
-        self.self_qa_related = torch.empty((0,), device=device, dtype=bool)
         self.prompt_embeddings = torch.empty((0, self.embedding_dim), device=device)
         self.answer_embeddings = torch.empty((0, self.embedding_dim), device=device)
-
-        # masks
+        self.self_qa_related = torch.empty((0,), device=device, dtype=bool)
         self.refusal_mask = torch.empty((0,), device=device, dtype=bool)
-        
-        # Property management
         self.properties: List[Dict] = []
-        
-        # score params
         self.score_params = torch.empty((0, 9), device=device)
-        # Predefined score functions
-        self.default_params = self.linear_vec_param_generator(a1=0.5, a2=0.38, penalty1=10, penalty2=3, ans_ratio=1.5, b1=0.5, b2=0.35, ans_penalty1=10, ans_penalty2=3)
-        self.refusal_params = self.linear_vec_param_generator(a1=0.35, a2=0.25, penalty1=30, penalty2=10, ans_ratio=0, b1=1, b2=1, ans_penalty1=0, ans_penalty2=0)
-        self.unrelated_params = self.linear_vec_param_generator(a1=0.35, a2=0.25, penalty1=20, penalty2=5, ans_ratio=1.5, b1=0.5, b2=0.35, ans_penalty1=10, ans_penalty2=3)
+
+        # scoring params (kept for compatibility with original logic)
+        self.default_params = self.linear_vec_param_generator(
+            a1=0.5, a2=0.38, penalty1=10, penalty2=3, ans_ratio=1.5, b1=0.5, b2=0.35, ans_penalty1=10, ans_penalty2=3
+        )
+        self.refusal_params = self.linear_vec_param_generator(
+            a1=0.35, a2=0.25, penalty1=30, penalty2=10, ans_ratio=0, b1=1, b2=1, ans_penalty1=0, ans_penalty2=0
+        )
+        self.unrelated_params = self.linear_vec_param_generator(
+            a1=0.35, a2=0.25, penalty1=20, penalty2=5, ans_ratio=1.5, b1=0.5, b2=0.35, ans_penalty1=10, ans_penalty2=3
+        )
+
+        # question builder
+        self.prompt_formatter: Callable[[str], str] = self.generate_question_with_keyword
+        self.adversarial_suffix = adversarial_suffix
     
-    def linear_vec_param_generator(self,a1=0.5, a2=0.4, penalty1=100, penalty2=30, ans_ratio=0.4, b1=0.3, b2=0.2, ans_penalty1=0, ans_penalty2=0):
+    def linear_vec_param_generator(
+        self,
+        a1=0.5,
+        a2=0.4,
+        penalty1=100,
+        penalty2=30,
+        ans_ratio=0.4,
+        b1=0.3,
+        b2=0.2,
+        ans_penalty1=0,
+        ans_penalty2=0,
+    ):
         """Generate linear vector params for score function"""
         return (a1, a2, penalty1, penalty2, ans_ratio, b1, b2, ans_penalty1, ans_penalty2)
     
-    def if_related(self, prompt:str, answer:str, threshold: float = 0.15):
+    def if_related(self, prompt: str, answer: str, threshold: float = 0.15):
         emb_similarity = text_similarity(self.embedding_model, prompt, answer)
         return bool(emb_similarity.item() >= threshold), emb_similarity
     
-    def add_pa_entry(self, 
-                prompt: str, 
-                answer: str, 
-                property: Dict):
+    def add_pa_entry(self, prompt: str, answer: str, property: Dict):
         """Add new prompt-answer pair with properties"""
         # Store texts
         self.prompts.append(prompt)
@@ -86,12 +196,11 @@ class IKEAQueryIterator(QueryGenerator):
         
         # Generate embeddings
         with torch.no_grad():
-            prompt_emb = self.embedding_model.encode(prompt, 
-                                         convert_to_tensor=True,
-                                         normalize_embeddings=True).to(self.device)
-            answer_emb = self.embedding_model.encode(answer, 
-                                         convert_to_tensor=True,
-                                         normalize_embeddings=True).to(self.device)
+            prompt_emb = torch.tensor(self.embedding_model.embed_query(prompt), dtype=torch.float32)
+            prompt_emb = F.normalize(prompt_emb, p=2, dim=-1).to(self.device)
+            answer_emb = torch.tensor(self.embedding_model.embed_query(answer), dtype=torch.float32)
+            answer_emb = F.normalize(answer_emb, p=2, dim=-1).to(self.device)
+
         
         # Update embedding matrices
         self.prompt_embeddings = torch.cat([self.prompt_embeddings, prompt_emb.unsqueeze(0)])
@@ -104,10 +213,10 @@ class IKEAQueryIterator(QueryGenerator):
         self.self_qa_related = torch.cat([self.self_qa_related, torch.tensor([is_related], device=self.device)])
         
         # Set score function based on properties
-        if property.get('is_refusal_answer', False): # explicit unrelated
+        if property.get('is_refusal_answer', False):  # explicit unrelated
             params = self.refusal_params
-            self.refusal_mask = torch.cat([self.refusal_mask, torch.tensor([False], device=self.device)]) # mask refusal part
-        elif property.get('is_related', False):      # implicit unrelated
+            self.refusal_mask = torch.cat([self.refusal_mask, torch.tensor([False], device=self.device)])
+        elif property.get('is_related', False):  # implicit unrelated
             params = self.unrelated_params
             self.refusal_mask = torch.cat([self.refusal_mask, torch.tensor([True], device=self.device)])
         else:
@@ -119,16 +228,12 @@ class IKEAQueryIterator(QueryGenerator):
         # Store properties
         self.properties.append(property)
         
-    def compute_scores(self, 
-                     query_prompts: List[str],
-                     batch_size: int = 4,
-                     debug:bool = False) -> Tensor:
+    def compute_scores(self, query_prompts: List[str], batch_size: int = 64, debug: bool = False) -> Tensor:
         """Compute scores for given queries"""
         # Encode queries
         with torch.no_grad():
-            query_emb = self.embedding_model.encode(query_prompts,
-                                        convert_to_tensor=True,
-                                        normalize_embeddings=True).to(self.device)
+            query_emb = torch.tensor(self.embedding_model.embed_documents(query_prompts), dtype=torch.float32)
+            query_emb = F.normalize(query_emb, p=2, dim=-1).to(self.device)
         
         # Compute similarities
         prompt_sims = chunked_matmul(query_emb, self.prompt_embeddings.T, batch_size)
@@ -139,13 +244,15 @@ class IKEAQueryIterator(QueryGenerator):
             return prompt_sims, answer_sims, scores
         return scores
     
-    def get_topk(self, 
-           query_prompts: List[str], 
-           k: int = 5,
-           batch_size: int = 4,
-           return_metadata: bool = False,
-           return_indices:bool = False,
-           debug:bool = False) -> Union[tuple, dict]:
+    def get_topk(
+        self,
+        query_prompts: List[str],
+        k: int = 5,
+        batch_size: int = 64,
+        return_metadata: bool = False,
+        return_indices: bool = False,
+        debug: bool = False,
+    ) -> Union[tuple, dict]:
         """获取外部prompt列表中平均得分最高的前k项
         
         Args:
@@ -173,68 +280,7 @@ class IKEAQueryIterator(QueryGenerator):
         prompts = [query_prompts[i] for i in topk_indices.cpu().tolist()]
         
         
-        # for debug
-        if debug:
-            info_dicts = []
-            for i in range(len(self.prompts)):
-                for j in range(len(query_prompts)):
-                    info_dict = {
-                                'iteration':self.properties[i]['iter'],
-                                'mutation_id':self.properties[i]['mutation_id'],
-                                'query_id': j,
-                                'avg_score':avg_scores[j].item(), 
-                                'query': query_prompts[j], 
-                                'past_prompt':self.prompts[i], 
-                                'retrieved':self.answers[i],
-                                'prompt_sims': prompt_sims[j][i].item(),
-                                'answer_sims': answer_sims[j][i].item(),
-                                'score': scores[j][i].item(), 
-                                'refusal': self.properties[i]['is_refusal_answer'],
-                                'repeat_rate': self.properties[i]['repeat_rate'],
-                                'is_related':self.properties[i]['is_related'],
-                                }
-                    info_dicts.append(info_dict)
-            info_dicts=pd.DataFrame(info_dicts)
-            info_dicts.sort_values(by='avg_score', ascending=False)
-            info_dicts.to_csv("/home/guest/rag-framework/logs/extracted_db_query_scores.csv",)
-            # in-prompts sims
-            prior_topic = "medicine and symptom"
-            topic_sim_mtx = text_similarity_matrix(self.embedding_model, self.prompts, [prior_topic]).squeeze()
-            with torch.no_grad():
-                self.entry_prompt_sim = chunked_matmul(self.prompt_embeddings, 
-                                        self.prompt_embeddings.T, 
-                                        step=4)
-                self.entry_answer_sim = chunked_matmul(self.answer_embeddings, 
-                                        self.answer_embeddings.T, 
-                                        step=4)
-                self.debug_qa_sim = chunked_matmul(self.prompt_embeddings, self.answer_embeddings.T, step=4)
-            db_info_dicts = []
-            for i in range(len(self.prompts)):
-                for j in range(len(self.prompts)):
-                    if i==j:
-                        continue
-                    info_dict = {'iteration':self.properties[i]['iter'],
-                                 'mutation_id':self.properties[i]['mutation_id'],
-                                 'causal':bool(self.properties[i]['iter']>self.properties[j]['iter']),
-                                 'is_mutation': self.properties[i]['is_mutation'],
-                                'compared_iteration':self.properties[j]['iter'],
-                                'prompt':self.prompts[i], 
-                                'compared_prompt':self.prompts[j], 
-                                'retrieved':self.answers[i],
-                                'compared_retrieved':self.answers[j],
-                                'prompt_sims': self.entry_prompt_sim[i][j].item(),
-                                'answer_sims': self.entry_answer_sim[i][j].item(),
-                                'topic_sim': topic_sim_mtx[i].item(),
-                                'p_a_sim_diff': self.entry_prompt_sim[i][j].item() - self.entry_answer_sim[i][j].item(),
-                                'q_pa_sim': self.debug_qa_sim[i][j].item(),
-                                'refusal': self.properties[i]['is_refusal_answer'],
-                                'repeat_rate': self.properties[i]['repeat_rate'],
-                                'co_repeat_rate': repeat_num(self.properties[i]['retrieve_id'], self.properties[j]['retrieve_id']) if self.properties[i]['iter'] > self.properties[j]['iter'] else 0,
-                                'is_related':self.properties[i]['is_related'],
-                                }
-                    db_info_dicts.append(info_dict)
-            db_info_dicts=pd.DataFrame(db_info_dicts)
-            db_info_dicts.to_csv("/home/guest/rag-framework/logs/extracted_db_entry_info.csv",)
+        # debug file dumps removed to keep module side-effect free
 
         scores = topk_scores
         if return_metadata:
@@ -243,10 +289,7 @@ class IKEAQueryIterator(QueryGenerator):
                 results.append({
                     "prompt": query_prompts[idx],
                     "score": avg_scores[idx].item(),
-                    "related_entries": [
-                        {"text": self.prompts[i], "similarity": scores[idx][i].item()}
-                        for i in torch.topk(scores[idx], min(3, len(self.prompts))).indices.tolist()
-                    ]
+                    "related_entries": []  # simplified: omit per-entry similarities for now
                 })
             return results
         else:
@@ -260,14 +303,14 @@ class IKEAQueryIterator(QueryGenerator):
         self.full_query_db_added_mask = np.concatenate([self.full_query_db_added_mask, np.zeros(len(texts), dtype=bool)]) 
         print(f"add entries (length:{len(texts)}) into full query DB...")
 
-    def shuffle_into_queries(self, prior_topic:str, prior_related_th:float=0.18, unsimilar_th:float=0.5):
+    def shuffle_into_queries(self, prior_topic: str, prior_related_th: float = 0.18, unsimilar_th: float = 0.5):
         """筛选出未加入queryDB的与主题相关且相似度低于阈值的条目"""
         # shuffle unrelated to topics
         topic_sim_mtx = text_similarity_matrix(self.embedding_model, self.full_query_db, [prior_topic])
         topic_valid_id = torch.nonzero(topic_sim_mtx.squeeze() > prior_related_th, as_tuple=True)[0].cpu().tolist()
         topic_valid_texts = [self.full_query_db[i] for i in topic_valid_id]
         # shuffle unsimilar
-        unsimilar_texts, unsimilar_valid_idxs = find_unsimilar_texts(self.embedding_model, topic_valid_texts, unsimilar_th, return_idx=True) 
+        unsimilar_texts, unsimilar_valid_idxs = find_unsimilar_texts(self.embedding_model, topic_valid_texts, unsimilar_th, return_idx=True)
         # find intersection
         valid_idxs = [topic_valid_id[i] for i in unsimilar_valid_idxs]
         # find unused
@@ -289,18 +332,20 @@ class IKEAQueryIterator(QueryGenerator):
         # track entry usage status
         self.query_valid_mask = np.concatenate([self.query_valid_mask, np.zeros(len(texts), dtype=bool)]) 
        
-    def query(self, 
-              score_k: int = 5,
-              condition_match_mode: str = 'greedy',
-              debug: bool = False,
-              max_retries: int = 3,
-              if_generate_new: bool = False,
-              topic: str = None,
-              generation_num: int = 100,
-              extra_demand: str = None, 
-              shuffle_topic_th: float = 0.05,
-              shuffle_unsim_th: float = 0.4,
-              sample_temperature: float=1) -> Optional[str]:
+    def query(
+        self,
+        score_k: int = 5,
+        condition_match_mode: str = "greedy",
+        debug: bool = False,
+        max_retries: int = 3,
+        if_generate_new: bool = False,
+        topic: Optional[str] = None,
+        generation_num: int = 100,
+        extra_demand: Optional[str] = None,
+        shuffle_topic_th: float = 0.05,
+        shuffle_unsim_th: float = 0.4,
+        sample_temperature: float = 1.0,
+    ) -> Optional[str]:
         """
         核心查询方法
         :param condition_match_mode: 在已满足条件的entry中的选择模式, 'random' or 'greedy' or 'soft_greedy
@@ -350,18 +395,28 @@ class IKEAQueryIterator(QueryGenerator):
             # raise ValueError("No valid words in counter db.")
             # return None
 
-    def update_score_function(self, 
-                              ):
+    def update_score_function(self):
         """更新score function"""
         pass
 
-    def directional_mutation(self, 
-                             old_prompt:str, old_answer:str, 
-                             search_mode:str = 'auto', if_hard_constraint:bool=True, auto_outclusive_ratio=0.5,
-                             sim_with_oldans:float=0.45, unsim_with_oldpmpt:float=0.3, epsilon:float=0.05,
-                             max_tries:int=5, generation_num:int=20,
-                             prompt_sim_stop_th:float=0.4, prompt_check_num:int=3,answer_sim_stop_th:float=0.4, answer_check_num:int=3,
-                             if_verbose:bool=False):
+    def directional_mutation(
+        self,
+        old_prompt: str,
+        old_answer: str,
+        search_mode: str = "auto",
+        if_hard_constraint: bool = True,
+        auto_outclusive_ratio: float = 0.5,
+        sim_with_oldans: float = 0.45,
+        unsim_with_oldpmpt: float = 0.3,
+        epsilon: float = 0.05,
+        max_tries: int = 5,
+        generation_num: int = 20,
+        prompt_sim_stop_th: float = 0.4,
+        prompt_check_num: int = 3,
+        answer_sim_stop_th: float = 0.4,
+        answer_check_num: int = 3,
+        if_verbose: bool = False,
+    ):
         """有向变异
         :param old_prompt: 旧的prompt
         :param old_answer: 旧的answer
@@ -407,14 +462,21 @@ class IKEAQueryIterator(QueryGenerator):
         # start mutate and search
         for round in range(max_tries):
             # mutate and generate new prompts
-            new_prompts = generate_anchor_word_with_llm(llm = self.gpt_generator, topic=self.topic, anchor_words_number=generation_num, existed_words=(list(self.anchor_words_counts)+mutated_prompts), extra_demand=extra_demand, mode='specific', attacker=self)
+            new_prompts = generate_anchor_word_with_llm(
+                llm=self.llm,
+                topic=self.topic,
+                anchor_words_number=generation_num,
+                existed_words=(list(self.anchor_words_counts) + mutated_prompts),
+                extra_demand=extra_demand,
+                mode="specific",
+            )
             mutated_prompts.extend(new_prompts)
             # judge if the new prompts are similar to the old answer
-            new_qa_sims = text_similarity(self.embedding_model, [old_answer], new_prompts).squeeze()
+            new_qa_sims = text_similarity_matrix(self.embedding_model, [old_answer], new_prompts).squeeze()
             valid_new_prompt_id = torch.nonzero(new_qa_sims >= qa_inclusive_th, as_tuple=True)[0]
             # judge if the new prompts are unsimilar to the old prompt
             if len(valid_new_prompt_id) > 0:
-                new_qq_sims = text_similarity(self.embedding_model, [old_prompt], new_prompts).squeeze()
+                new_qq_sims = text_similarity_matrix(self.embedding_model, [old_prompt], new_prompts).squeeze()
                 min_idx = valid_new_prompt_id[torch.argmin(new_qq_sims[valid_new_prompt_id]).item()]
                 min_qq_sim = new_qq_sims[min_idx].item()
                 if min_qq_sim < qq_outclusive_th: # satisfied the unsimilarity constraint
@@ -444,10 +506,19 @@ class IKEAQueryIterator(QueryGenerator):
         
         return to_return_prompt
     
-    def if_stop_mutation(self, prompt:str, answer:str=None, prompt_sim_th:float=0.4, prompt_num:int=3,answer_sim_th:float=0.4, answer_num:int=3) -> bool:
+    def if_stop_mutation(
+        self,
+        prompt: str,
+        answer: Optional[str] = None,
+        prompt_sim_th: float = 0.4,
+        prompt_num: int = 3,
+        answer_sim_th: float = 0.4,
+        answer_num: int = 3,
+    ) -> bool:
         """判断是否停止变异"""
         if not answer:
-            cur_prompt_embedding = self.embedding_model.encode([prompt], convert_to_tensor=True, normalize_embeddings=True).to(self.device)
+            cur_prompt_embedding = torch.tensor(self.embedding_model.embed_documents([prompt]), dtype=torch.float32)
+            cur_prompt_embedding = F.normalize(cur_prompt_embedding, p=2, dim=-1).to(self.device)
             prompt_sim_vec = chunked_matmul(cur_prompt_embedding, self.prompt_embeddings.T, step=4).squeeze()
             if  self.prompt_embeddings.size(dim=0) <= 1:
                 return False
@@ -457,7 +528,8 @@ class IKEAQueryIterator(QueryGenerator):
             if_stop = bool(topk_avg_sim > prompt_sim_th)
             return if_stop
         else:
-            cur_answer_embedding = self.embedding_model.encode([answer], convert_to_tensor=True, normalize_embeddings=True).to(self.device)
+            cur_answer_embedding = torch.tensor(self.embedding_model.embed_documents([answer]), dtype=torch.float32)
+            cur_answer_embedding = F.normalize(cur_answer_embedding, p=2, dim=-1).to(self.device)
             answer_sim_vec = chunked_matmul(cur_answer_embedding, self.answer_embeddings.T, step=4).squeeze()
             if  self.answer_embeddings.size(dim=0) <= 1:
                 return False
@@ -503,15 +575,30 @@ class IKEAQueryIterator(QueryGenerator):
         total_score = prompt_score + answer_score
         return total_score
     
-    def _generate_new_words(self, topic, generation_num, extra_demand, mode:str='general'):
+    def _generate_new_words(self, topic, generation_num, extra_demand, mode: str = "general"):
          # -- 生成新条目 -- #
         if not topic:
-            topic = self.topic           
-        new_texts = generate_anchor_word_with_llm(llm = self.gpt_generator, topic=topic, anchor_words_number=generation_num, existed_words=self.queries, if_verbose=False, extra_demand=extra_demand, mode=mode, attacker=self)
+            topic = self.topic
+        new_texts = generate_anchor_word_with_llm(
+            llm=self.llm,
+            topic=topic,
+            anchor_words_number=generation_num,
+            existed_words=self.queries,
+            extra_demand=extra_demand,
+            mode=mode,
+        )
         # 更新数据库添加entry
         self.add_entry_to_full_queryDB(new_texts)
     
-    def generate_question_with_keyword(self, keyword: str, spot_on_th:float = 0.7, max_tries: int=10, temperature: float=0.7, if_hard_constraint: bool=True, mode="knowledge") -> str:
+    def generate_question_with_keyword(
+        self,
+        keyword: str,
+        spot_on_th: float = 0.7,
+        max_tries: int = 5,
+        temperature: float = 0.7,
+        if_hard_constraint: bool = True,
+        mode: str = "knowledge",
+    ) -> Optional[str]:
         """
         Generate a question based on a given keyword using a structured prompt.
         Args:
@@ -564,51 +651,65 @@ class IKEAQueryIterator(QueryGenerator):
             prompt = specific_prompt
         else:
             raise ValueError(f"Unsupported mode: {mode}. Choose 'knowledge' or 'event'.")                
-        self.query_cost_counts['query'] += self.count_token_func(prompt)
-        
-        chat_template = [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": prompt}]
-        # Generate and shuffle question
+        # Generate and select best question
         optimal_spot_on_rate = 0
         optimal_question = None
         for _ in range(max_tries):
-            question = self.gpt_generator.generate(chat_template, temperature).strip()
-            self.query_cost_counts['response'] += self.count_token_func(question)
-            
-            spot_on_rate = text_similarity(self.embedding_model, question, keyword).item()
+            # LLMManager expects a string prompt
+            question, _ = self.llm.infer(prompt)
+            question = (question or "").strip()
+            spot_on_rate = text_similarity(self.embedding_model, question, keyword).item() if question else 0.0
             if spot_on_rate >= spot_on_th:
                 return question
             elif spot_on_rate >= optimal_spot_on_rate:
                 optimal_question = question
                 optimal_spot_on_rate = spot_on_rate
         if if_hard_constraint and optimal_spot_on_rate < spot_on_th:
-            tqdm.write(f"No satisfied question! (optimal spot on rate: {optimal_spot_on_rate}; keyword: {keyword})")
+            tqdm.write(f"No satisfied question! (optimal spot-on: {optimal_spot_on_rate:.3f}; keyword: {keyword})")
             return None
         else:
             return optimal_question
+
+    # -----------------------------
+    # Framework-facing API
+    # -----------------------------
+    def generate(self, attack_num: int = 200, keywords_only: bool = False) -> List[str]:
+        """Generate a list of attack questions following IKEA intuition.
+
+        Steps:
+        1) LLM creates anchor words for the topic
+        2) Convert each keyword to a broad question
+        3) Optionally append adversarial suffix
+        """
+        # 1) anchor words
+        num_keywords = min(max(attack_num // 3, 10), attack_num)
+        anchors = generate_anchor_word_with_llm(
+            llm=self.llm,
+            topic=self.topic,
+            anchor_words_number=num_keywords,
+            existed_words=list(self.anchor_words_counts.keys()),
+            mode="general",
+        )
+
+        anchors = [a for a in anchors if isinstance(a, str) and a.strip()]
+        if keywords_only:
+            return anchors
+
+        # 2) questions
+        questions: List[str] = []
+        for kw in anchors:
+            q = self.generate_question_with_keyword(kw, mode="topic_specific")
+            if q:
+                if self.adversarial_suffix:
+                    q = q.rstrip() + " " + self.adversarial_suffix
+                questions.append(q)
+        return questions
 
 
 ### utils
 def repeat_num(ls_1,ls_2):
     coset = set(ls_1 + ls_2)
     return len(ls_1)+len(ls_2)-len(coset)
-
-### extracted database ###
-def chunked_matmul(A:Tensor, B:Tensor, step:int, show_progress:bool=False):
-    """Matrix multiply, but A is divided into chunks to reduce memory usage.
-    Args:
-        A: The matrix on the left.
-        B: The matrix on the right.
-        step: The number of rows of a chunk.
-    Return:
-        The product of A and B.
-    """
-    n = len(A)
-    results = []
-    lbs = tqdm.tqdm(range(0, n, step)) if show_progress else range(0, n, step)
-    for lb in lbs:
-        ub = min(n, lb+step)
-        results.append(torch.matmul(A[lb:ub], B))
-    return torch.concatenate(results, dim=0)
 
 ###### Generate anchor words ######
 
@@ -711,7 +812,7 @@ def generate_specific_anchor_word_prompt(topic: str, number: int, existed_words:
     
     return prompt_template.strip()
 
-def clean_json_string(json_str):
+def clean_json_string(json_str: str) -> str:
     """
     Cleans OpenAI API response by removing surrounding Markdown code blocks
     (```json ... ``` or ``` ... ```), ensuring it contains only raw JSON.
@@ -727,7 +828,7 @@ def clean_json_string(json_str):
     
     return json_str.strip()
 
-def parse_anchor_words(json_str):
+def parse_anchor_words(json_str: str) -> List[str]:
     """
     Parse the JSON output from OpenAI API and extract anchor words.
     
@@ -739,23 +840,37 @@ def parse_anchor_words(json_str):
     """
     try:
         loaded_dict = json.loads(json_str)
-        return loaded_dict.get("anchor_words", [])
+        words = loaded_dict.get("anchor_words", [])
+        if isinstance(words, list):
+            return [str(w).strip() for w in words if str(w).strip()]
+        return []
     except json.JSONDecodeError:
         try:
             # clean possible Markdown
             clean_json = clean_json_string(json_str)
             data = json.loads(clean_json)
-            return data.get("anchor_words", [])
+            words = data.get("anchor_words", [])
+            if isinstance(words, list):
+                return [str(w).strip() for w in words if str(w).strip()]
+            return []
         except json.JSONDecodeError:
             print("Error: Failed to decode JSON response.")
             return []
     
-def generate_anchor_word_with_llm(llm:OpenAiWrapper,topic:str, anchor_words_number:int=10, existed_words:List[str]=None, if_verbose:bool=False, extra_demand:str=None, mode:str='general', attacker: MutationAttacker=None) -> List[str]:
+def generate_anchor_word_with_llm(
+    llm: LLMManager,
+    topic: str,
+    anchor_words_number: int = 10,
+    existed_words: Optional[List[str]] = None,
+    if_verbose: bool = False,
+    extra_demand: Optional[str] = None,
+    mode: str = "general",
+) -> List[str]:
     '''
     Generate anchor words with OpenAI api for retrieving anchor words based on the given topic.
     
     Args:
-        llm (OpenAiWrapper): Existed OpenAiWrapper
+        llm (LLMManager): Existed LLMManager
         topic (str): The topic for which anchor words should be generated.
         anchor_words_number (int): The number of anchor words you want to generate.
         existed_words (List[str]): The existed words you want to be different from.
@@ -768,12 +883,9 @@ def generate_anchor_word_with_llm(llm:OpenAiWrapper,topic:str, anchor_words_numb
         prompt = generate_specific_anchor_word_prompt(topic, anchor_words_number, existed_words, extra_demand)
     elif mode == 'general':
         prompt = generate_anchor_word_prompt(topic, anchor_words_number, existed_words, extra_demand)
-    chat_template = [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": prompt}]
-    json_str = llm.generate(chat_template)
+    # LLMManager expects a string prompt
+    json_str, _ = llm.infer(prompt)
     anchor_words = parse_anchor_words(json_str)
     if if_verbose:
         print(json_str)
-    if attacker is not None:
-        attacker.query_cost_counts['query'] += attacker.count_token_func(prompt)
-        attacker.query_cost_counts['response'] += attacker.count_token_func(json_str)
     return anchor_words
