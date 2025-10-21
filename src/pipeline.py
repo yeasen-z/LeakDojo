@@ -1,4 +1,5 @@
 from .interfaces import Pipeline
+from typing import List
 
 class RAGPipeline(Pipeline):
     def __init__(self, llm, query_rewriter, retriever, reranker, summarizer, constructor, cfg, args):
@@ -10,7 +11,7 @@ class RAGPipeline(Pipeline):
         self.constructor = constructor
         self.cfg = cfg
         self.args = args
-    def run(self, batch_queries: str) -> str:
+    def run(self, batch_queries: List[str]) -> str:
         if self.args.rewriter:
             queries_rws = self.query_rewriter.rewrite(batch_queries, n_variants=5)
 

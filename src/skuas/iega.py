@@ -88,11 +88,17 @@ class IKEAQueryGenerator(QueryGenerator):
         """Generate linear vector params for score function"""
         return (a1, a2, penalty1, penalty2, ans_ratio, b1, b2, ans_penalty1, ans_penalty2)
     
-    def _generate_new_words(self, number, extra_demand: str = "", mode: str = "general"):
-        # -- 生成新条目 -- #       
-        new_texts = self.generate_anchor_word_with_llm(anchor_words_number=number, existed_words=self.queries, extra_demand=extra_demand, mode=mode)
-        # 更新数据库添加entry
-        self.add_entry_to_full_queryDB(new_texts)
+    def _generate_new_words(self, number, extra_demand: str = "", mode: str = "general", entity_path = None):
+        if entity_path:
+            with open(entity_path, "r", encoding="utf-8") as f:
+                entities = json.load(f)
+            entities_sampled = random.sample(entities, min(number, len(entities)))
+            self.add_entry_to_full_queryDB(entities_sampled)
+        else:
+            # -- 生成新条目 -- #       
+            new_texts = self.generate_anchor_word_with_llm(anchor_words_number=number, existed_words=self.queries, extra_demand=extra_demand, mode=mode)
+            # 更新数据库添加entry
+            self.add_entry_to_full_queryDB(new_texts)
 
     def add_entry_to_full_queryDB(self, texts: List[str]):
         """从外部列表初始化"""
@@ -524,7 +530,7 @@ class IKEAQueryGenerator(QueryGenerator):
                              old_prompt:str, old_answer:str, 
                              search_mode:str = 'auto', if_hard_constraint:bool=True, auto_outclusive_ratio=0.5,
                              sim_with_oldans:float=0.45, unsim_with_oldpmpt:float=0.3, epsilon:float=0.05,
-                             max_tries:int=10, generation_num:int=20,
+                             max_tries:int=20, generation_num:int=20,
                              prompt_sim_stop_th:float=0.4, prompt_check_num:int=3,answer_sim_stop_th:float=0.4, answer_check_num:int=3,
                              if_verbose:bool=False):
         """有向变异
@@ -608,7 +614,7 @@ class IKEAQueryGenerator(QueryGenerator):
         
         # if the new prompt is too similar to the old prompt, stop mutation          
         if self.if_stop_mutation(to_return_prompt, answer=None, prompt_sim_th=prompt_sim_stop_th, prompt_num=prompt_check_num,answer_sim_th=answer_sim_stop_th, answer_num=answer_check_num):
-            tqdm.write(f"Stop mutation for new prompt repeat!\nRepeat prompt: {to_return_prompt}")
+            # tqdm.write(f"Stop mutation for new prompt repeat!\nRepeat prompt: {to_return_prompt}")
             return None
         
         return to_return_prompt

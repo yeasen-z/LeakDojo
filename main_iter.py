@@ -218,7 +218,10 @@ def run_iega_ikea(cfg, args):
     }
 
     # 初始化攻击起点
-    ikea._generate_new_words(number=100)
+    if args.cfg_name == "fiqa":
+        ikea._generate_new_words(number=280, entity_path="./attack_shop/entity_base/FinTech.json")
+    else:
+        ikea._generate_new_words(number=100)
     ikea.shuffle_into_queries(prior_related_th=0.10, unsimilar_th=0.4)
 
     # --- experiment setting --- #
@@ -286,7 +289,7 @@ def run_iega_ikea(cfg, args):
             question = prompt
 
             contexts, doc_ids, prompt, answers, reasons, rewritten_queries_list, summarized_contexts = rag_pipeline.run([question])
-            save_helper["queries"].extend(question)
+            save_helper["queries"].extend([question])
             save_helper["contexts"].extend(contexts)
             save_helper["doc_ids"].extend(doc_ids)
             save_helper["prompts"].extend(prompt)
@@ -297,16 +300,16 @@ def run_iega_ikea(cfg, args):
             if args.summarizer:
                 save_helper["sum_contexts"].extend(summarized_contexts)
 
-            print(answers[0][0:100]) # print partial answer
+            print(answers[0][0:50]) # print partial answer
 
             new_anchor_word = ikea.directional_mutation(old_prompt=anchor_word, old_answer=answers[0], 
                                                         search_mode='auto', if_hard_constraint=False, 
-                                                        auto_outclusive_ratio=0.6, epsilon=0.3, # auto setting
-                                                        sim_with_oldans=0.55, unsim_with_oldpmpt=0.35, # manual setting
-                                                        prompt_sim_stop_th = 0.35, prompt_check_num = 3, answer_sim_stop_th= 0.3, answer_check_num=3, # stop setting
+                                                        auto_outclusive_ratio=0.75, epsilon=0.4, # auto setting
+                                                        sim_with_oldans=0.45, unsim_with_oldpmpt=0.45, # manual setting
+                                                        prompt_sim_stop_th = 0.45, prompt_check_num = 3, answer_sim_stop_th= 0.45, answer_check_num=3, # stop setting
                                                         if_verbose=False)
             if not new_anchor_word:
-                tqdm.write(f"Stop mutation in iter {count} for not find new anchor word...\n\n")
+                tqdm.write(f"Stop mutation in iter {count} for not find new anchor word...")
                 mutation_id += 1
             else:
                 mutation_count += 1
