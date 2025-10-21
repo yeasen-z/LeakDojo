@@ -30,7 +30,7 @@ class RougeEvaluator(AttackEvaluator):
                 # if any(pub_file in src for pub_file in public_ragfile_list):
                 #     continue
                 scores = self.scorer.score(ctx, out)
-                if scores['rougeL'].recall > self.threshold:
+                if scores['rougeL'].fmeasure > self.threshold:
                     flag = 1
                     extract_context.append(ctx)
             num_effective_prompt += flag

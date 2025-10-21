@@ -25,7 +25,7 @@ def parse_args():
     parser.add_argument("--force_rebuild", action="store_true", help="Force rebuild retrieval database")
 
     # LLM
-    parser.add_argument("--llm_model", type=str, default="./Models/Qwen3-14B")
+    parser.add_argument("--llm_model", type=str, default="./Models/Qwen2.5-7B-Instruct")
     parser.add_argument("--llm_base_url", type=str, default="http://localhost:22999/v1")
     parser.add_argument("--llm_api_key", type=str, default="EMPTY")
     parser.add_argument("--llm_temperature", type=float, default=0)
