@@ -13,6 +13,8 @@ GREEN = "\x1b[32m"
 YELLOW = "\x1b[33m"
 RESET = "\x1b[0m"
 
+import random
+random.seed(42)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="RAG Pipeline")
@@ -196,8 +198,8 @@ def evaluate_results(save_path):
 
     rouge_scores_05 = roge05.evaluate(data["doc_ids"], data["answers"], data["contexts"])
     rouge_scores_08 = roge08.evaluate(data["doc_ids"], data["answers"], data["contexts"])
-    print("Rouge-L@0.8 (Rouge-L@0.5)")
-    print(f"rouge_hit_count: {rouge_scores_08['hit_count']}({rouge_scores_05['hit_count']}), rouge_total_count: {rouge_scores_08['total_count']}({rouge_scores_05['total_count']})")
+    print("Rouge-L[F1]@0.8 (Rouge-L[F1]@0.5)")
+    print(f"rouge_hit_count: {rouge_scores_08['rouge_hit_count']}({rouge_scores_05['rouge_hit_count']}), unique_contexts: {rouge_scores_08['unique_contexts']}({rouge_scores_05['unique_contexts']})")
     literal_scores_50 = ltre50.evaluate(data["doc_ids"], data["answers"], data["contexts"])
     print(f"Literal Match@50: {literal_scores_50}")
     embedding_scores_08 = embde08.evaluate(data["doc_ids"], data["answers"], data["contexts"])
@@ -227,8 +229,8 @@ if __name__ == "__main__":
         raise ValueError(f"Config {args.cfg_name} not found.")
     
     if args.attack in ["bbqg", "wbtq"]:
-        save_path = run_static(cfg, args)
-        # save_path = "exp/fiqa-chroma/bge-large-en-v1_5-Qwen3-14B/mmr-15-bge-reranker-large-10/BAAI-bge-large-en-v1_5/003e68/rewr-False_rerank-True_sum-False_wbtq.json"
+        # save_path = run_static(cfg, args)
+        save_path = "exp/fiqa-chroma/bge-large-en-v1_5-Qwen2_5-7B-Instruct/mmr-15-bge-reranker-large-10/BAAI-bge-large-en-v1_5/489ae8/rewr-False_rerank-True_sum-False_wbtq.json"
         evaluate_results(save_path)
     else:
         pass
