@@ -2,6 +2,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from openai import OpenAI
 from typing import List
+from functools import partial
 
 from .interfaces import LLMManager
 
@@ -32,13 +33,16 @@ class OpenAILLM(LLMManager):
 
         self.client = OpenAI(base_url=self.base_url, api_key=self.api_key)
 
-    def _call_api(self, prompt: str) -> str:
+    def _call_api(self, prompt: str, temperature: float = None, top_p: float = None) -> str:
         """普通模式调用"""
+        if temperature is None or top_p is None:
+            temperature = self.temperature
+            top_p = self.top_p
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=self.temperature,
-            top_p=self.top_p,
+            temperature=temperature,
+            top_p=top_p,
             max_tokens=self.max_gen_len,
         )
 
@@ -47,13 +51,16 @@ class OpenAILLM(LLMManager):
             print("Warning: empty answer from LLM.")
         return content.strip()
 
-    def _call_api_with_reasoning(self, prompt: str):
+    def _call_api_with_reasoning(self, prompt: str, temperature: float = None, top_p: float = None):
         """带 reasoning_content 的模型调用"""
+        if temperature is None or top_p is None:
+            temperature = self.temperature
+            top_p = self.top_p
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
-            temperature=self.temperature,
-            top_p=self.top_p,
+            temperature=temperature,
+            top_p=top_p,
             max_tokens=self.max_gen_len
         )
 
@@ -62,16 +69,22 @@ class OpenAILLM(LLMManager):
         # print("Length of reasoning content:", len(reasoning.split()))
         return content.strip(), reasoning.strip()
 
-    def infer(self, prompt: str) -> str:
+    def infer(self, prompt: str, temperature: float = None, top_p: float = None) -> str:
         """单条推理（接口定义要求）"""
+        if temperature is None or top_p is None:
+            temperature = self.temperature
+            top_p = self.top_p
         if self.reasoning and os.path.basename(self.model) in MODELS_THINKING_SUPPORT:
-            answers, reasons = self._call_api_with_reasoning(prompt)
+            answers, reasons = self._call_api_with_reasoning(prompt, temperature, top_p)
             return answers, reasons
         else:
             return self._call_api(prompt), None
 
-    def batch_infer(self, all_prompts: List[str]) -> List[str]:
+    def batch_infer(self, all_prompts: List[str], temperature: float = None, top_p: float = None) -> List[str]:
         """批量推理，带多线程"""
+        if temperature is None or top_p is None:
+            temperature = self.temperature
+            top_p = self.top_p
         answers, reasons = [], []
 
         reasoning_mode = (
@@ -79,12 +92,14 @@ class OpenAILLM(LLMManager):
             os.path.basename(self.model) in MODELS_THINKING_SUPPORT
         )
 
+        partial_infer = partial(self.infer, temperature=temperature, top_p=top_p)
+
         with ThreadPoolExecutor(max_workers=50) as executor:
             # if reasoning_mode:
             #     results = list(executor.map(self._call_api_with_reasoning, all_prompts))
             # else:
             #     results = list(executor.map(self._call_api, all_prompts))
-            results = list(executor.map(self.infer, all_prompts))
+            results = list(executor.map(partial_infer, all_prompts))
 
     
         for answer, reason in results:
