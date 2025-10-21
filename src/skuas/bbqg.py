@@ -105,9 +105,9 @@ class BlackBoxQueryGenerator(QueryGenerator):
                     - Each entity must appear on a separate line.
 
                     Example output:
-                    Entity 1
-                    Entity 2
-                    Entity 3
+                    Entity_1
+                    Entity_2
+                    Entity_3
                     ...
                 """)
         
