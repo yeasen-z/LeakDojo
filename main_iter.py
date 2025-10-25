@@ -381,4 +381,6 @@ if __name__ == "__main__":
         # save_path = "exp/fiqa-chroma/bge-large-en-v1_5-Qwen2_5-7B-Instruct/mmr-15-bge-reranker-large-10/BAAI-bge-large-en-v1_5/f9b200/rewr-False_rerank-True_sum-False_wbtq.json"
         evaluate_results(save_path)
     elif args.attack == "iega":
-        run_iega_ikea(cfg, args)
+        # run_iega_ikea(cfg, args)
+        save_path = "exp/fiqa-chroma/bge-large-en-v1_5-Qwen2_5-7B-Instruct/mmr-15-bge-reranker-large-10/BAAI-bge-large-en-v1_5/cad87e/rewr-False_rerank-True_sum-False_iega.json"
+        evaluate_results(save_path)

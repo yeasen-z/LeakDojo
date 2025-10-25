@@ -157,4 +157,5 @@ class BlackBoxQueryGenerator(QueryGenerator):
         entity_pool = list(set([e.replace('"','').strip() for e in self.existed_entity_pool]))
         queries = self.fillin_template(allocation, entity_pool, variants_per_template=3)
         queries_with_suffix = [q + self.adversarial_suffix for q in queries]
+        queries_with_suffix = queries_with_suffix[:self.attack_num]
         return queries_with_suffix
