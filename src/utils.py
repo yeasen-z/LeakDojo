@@ -72,4 +72,5 @@ def get_embed_model(embed_provider, embed_model_dir, retrival_database_batch_siz
                 )
         except ValueError:
             raise Exception(f"Encoder {embed_model_dir} not found, please check.")
+        print(f"Loaded embedding model from {embed_model_dir}")
     return embed_model

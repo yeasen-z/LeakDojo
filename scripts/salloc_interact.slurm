@@ -20,3 +20,10 @@ nohup python -m vllm.entrypoints.openai.api_server \
     --tensor-parallel-size 2 \
     --dtype auto \
     --gpu-memory-utilization 0.7 > vllm.log 2>&1 &
+
+nohup python -m vllm.entrypoints.openai.api_server \
+    --model ./Models/Qwen2.5-14B-Instruct \
+    --port 22999 \
+    --tensor-parallel-size 2 \
+    --dtype auto \
+    --gpu-memory-utilization 0.7 > vllm.log 2>&1 &

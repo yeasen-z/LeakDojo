@@ -101,9 +101,21 @@ class VectorRetriever(Retriever):
 
     def _ensure_list_of_str(self, x: Union[str, Iterable[str]]) -> List[str]:
         """Utility: 把单个 str 或可迭代[str] 统一成 List[str]."""
+        if x is None:
+            return []
+
         if isinstance(x, str):
-            return [x]
-        return list(x)
+            x = x.strip()
+            return [x] if x else []
+
+        # 如果是可迭代类型，则过滤掉 None 和空字符串
+        cleaned = []
+        for item in x:
+            if isinstance(item, str):
+                s = item.strip()
+                if s:
+                    cleaned.append(s)
+        return cleaned
     
     def _unique_docs_preserve_order(self, docs: List) -> List:
         """

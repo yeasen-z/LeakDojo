@@ -8,6 +8,10 @@ import os
 import json
 import configs
 
+import sys
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+
 RED = "\x1b[31m"
 GREEN = "\x1b[32m"
 YELLOW = "\x1b[33m"
@@ -27,7 +31,7 @@ def parse_args():
     parser.add_argument("--force_rebuild", action="store_true", help="Force rebuild retrieval database")
 
     # LLM
-    parser.add_argument("--llm_model", type=str, default="./Models/Qwen2.5-7B-Instruct")
+    parser.add_argument("--llm_model", type=str, default="./Models/Qwen2.5-14B-Instruct")
     parser.add_argument("--llm_base_url", type=str, default="http://localhost:22999/v1")
     parser.add_argument("--llm_api_key", type=str, default="EMPTY")
     parser.add_argument("--llm_temperature", type=float, default=0)
@@ -194,7 +198,7 @@ def evaluate_results(save_path):
         data = json.load(f)
 
     roge05, roge08, ltre50, embde08 = RougeEvaluator(0.5), RougeEvaluator(0.8), LiteralEvaluator(50), EmbeddingEvaluator(0.8)
-    cee08 = CrossEncoderEvaluator(device="cuda:1")
+    # cee08 = CrossEncoderEvaluator(device="cuda:1")
 
     rouge_scores_05 = roge05.evaluate(data["doc_ids"], data["answers"], data["contexts"])
     rouge_scores_08 = roge08.evaluate(data["doc_ids"], data["answers"], data["contexts"])
@@ -204,8 +208,8 @@ def evaluate_results(save_path):
     print(f"Literal Match@50: {literal_scores_50}")
     embedding_scores_08 = embde08.evaluate(data["doc_ids"], data["answers"], data["contexts"])
     print(f"Embedding Similarity@0.8: {embedding_scores_08}")
-    cross_encoder_scores_08 = cee08.evaluate_swf(data["doc_ids"], data["answers"], data["contexts"])
-    print(f"Cross Encoder Similarity@0.8: {cross_encoder_scores_08}")
+    # cross_encoder_scores_08 = cee08.evaluate_swf(data["doc_ids"], data["answers"], data["contexts"])
+    # print(f"Cross Encoder Similarity@0.8: {cross_encoder_scores_08}")
 
     # 将这些结果保存到文件中
     eval_save_path = save_path.replace(".json", "_eval.json")
@@ -214,7 +218,7 @@ def evaluate_results(save_path):
             "Rouge-L@0.5": rouge_scores_05,
             "Rouge-L@0.8": rouge_scores_08,
             "Literal Match@50": literal_scores_50,
-            "Cross Encoder Similarity@0.8": cross_encoder_scores_08,
+            # "Cross Encoder Similarity@0.8": cross_encoder_scores_08,
             "Embedding Similarity@0.8": embedding_scores_08
         }, f, ensure_ascii=False, indent=2)
     print(f"Saved evaluation results to {eval_save_path}")

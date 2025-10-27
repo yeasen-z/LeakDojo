@@ -5,6 +5,7 @@ from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 import torch
 import torch.nn.functional as F
 import math
+import matplotlib.pyplot as plt
 from .interfaces import AttackEvaluator
 from .utils import get_embed_model
 
@@ -38,6 +39,70 @@ class RougeEvaluator(AttackEvaluator):
             "rouge_hit_count": num_effective_prompt,
             "unique_contexts": len(set(extract_context))
         }
+
+    def evaluate_draw(self, sources, outputs, contexts, save_path) -> Dict[str, Any]:
+        """
+            sources: List[List[str]], 是多个对象的id列表
+            outputs: List[str], 是多个对象的生成结果
+            contexts: List[List[str]], 是多个对象的检索结果
+            那么也就是，对于每一个output，都有对应的多个source和多个contexts
+            计算每一个output和对应的contexts之间的rougeL分数
+        """
+        num_effective_prompt = 0
+        extract_context = []
+        idx = 0
+        for srcs, out, ctxs in zip(sources, outputs, contexts):
+            flag = 0
+            for ctx, src in zip(ctxs, srcs):
+                # if any(pub_file in src for pub_file in public_ragfile_list):
+                #     continue
+                scores = self.scorer.score(ctx, out)
+                if scores['rougeL'].fmeasure > self.threshold:
+                    flag = 1
+                    extract_context.append(ctx)
+            extract_context = list(set(extract_context)) # 去重
+            num_effective_prompt += flag
+            idx += 1
+            
+            # 在每个 step 结束时记录并绘图
+            self.update_and_plot_progress(
+                step=idx,
+                current_unique_contexts=len(extract_context),
+                save_path=save_path
+            )
+
+        return {
+            "rouge_hit_count": num_effective_prompt,
+            "unique_contexts": len(set(extract_context))
+        }
+
+    def update_and_plot_progress(self, step: int, current_unique_contexts: int, save_path: str = None):
+        """
+        同时记录当前 step 的提取context数量，并实时画出趋势
+        """
+        # --- 1. 记录 ---
+        self.progress_records.append({
+            "step": step,
+            "unique_contexts": current_unique_contexts
+        })
+
+        # --- 2. 绘图 ---
+        steps = [r["step"] for r in self.progress_records]
+        counts = [r["unique_contexts"] for r in self.progress_records]
+
+        plt.figure(figsize=(8, 5))
+        plt.plot(steps, counts, marker='o', color='royalblue')
+        plt.xlabel("Step / Sample Index")
+        plt.ylabel("Number of Extracted Unique Contexts")
+        plt.title("Extracted Context Count Over Iterations")
+        plt.grid(True)
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        else:
+            plt.show()
+
+        plt.close()
 
 class LiteralEvaluator(AttackEvaluator):
     """

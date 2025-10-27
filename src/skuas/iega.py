@@ -36,7 +36,7 @@ class IKEAQueryGenerator(QueryGenerator):
         self,
         llm: LLMManager,
         data_description: dict = None,
-        embed_model_name: str = "./Models/all-mpnet-base-v2",
+        embed_model_name: str = "sentence-transformers/all-mpnet-base-v2",
         prompt_formatter: Callable = general_prompt_formatter,
         device: str = "cuda:0",
     ):
