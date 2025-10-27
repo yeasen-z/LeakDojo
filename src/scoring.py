@@ -48,6 +48,8 @@ class RougeEvaluator(AttackEvaluator):
             那么也就是，对于每一个output，都有对应的多个source和多个contexts
             计算每一个output和对应的contexts之间的rougeL分数
         """
+        self.progress_records = []  # 用于记录每个 step 的提取 context 数量
+        
         num_effective_prompt = 0
         extract_context = []
         idx = 0

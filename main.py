@@ -24,7 +24,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="RAG Pipeline")
 
     # 基础输入
-    parser.add_argument("--device", type=str, default="cuda:1")
+    parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--cfg_name", type=str, default="fiqa", help="Config name in configs/")
 
     # retrieval
@@ -82,7 +82,7 @@ def setup(cfg, args):
     if args.rewriter and not args.reranker:
         print("[NOTING] Query rewriting is enabled but Reranker is disabled. It's recommended to use Query Rewriter with Reranker for better performance.")
 
-    summarizer = LLMHybridSummarization(llm_tool, embed_provider=cfg.summarizer["provider"], embed_model_dir=cfg.summarizer["model"], device='cuda:1')
+    summarizer = LLMHybridSummarization(llm_tool, embed_provider=cfg.summarizer["provider"], embed_model_dir=cfg.summarizer["model"], device='cuda:0')
     constructor = SimplePromptConstructor()
 
     return llm, llm_tool, query_rewriter, retriever, reranker, summarizer, constructor
@@ -198,7 +198,7 @@ def evaluate_results(save_path):
         data = json.load(f)
 
     roge05, roge08, ltre50, embde08 = RougeEvaluator(0.5), RougeEvaluator(0.8), LiteralEvaluator(50), EmbeddingEvaluator(0.8)
-    # cee08 = CrossEncoderEvaluator(device="cuda:1")
+    # cee08 = CrossEncoderEvaluator(device="cuda:0")
 
     rouge_scores_05 = roge05.evaluate(data["doc_ids"], data["answers"], data["contexts"])
     rouge_scores_08 = roge08.evaluate(data["doc_ids"], data["answers"], data["contexts"])
