@@ -1,4 +1,5 @@
 salloc -N 1 -n 1 -p a01 --gres=gpu:2 --nodelist=g56 --cpus-per-task=64 --time=01:00:00
+salloc -N 1 -n 1 -p a01 --gres=gpu:2 --cpus-per-task=64 --time=01:00:00
 
 source ~/.bashrc
 conda activate rag_vllm
