@@ -6,4 +6,4 @@ from .utils import get_embed_model
 from .pipeline import RAGPipeline
 
 
-from .skuas import BlackBoxQueryGenerator, WhiteBoxQueryLoader, IKEAQueryGenerator
+from .skuas import BlackBoxQueryGenerator, WhiteBoxQueryLoader, IKEAQueryGenerator, RtfQueryGenerator
