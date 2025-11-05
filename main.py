@@ -27,11 +27,12 @@ def parse_args():
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--cfg_name", type=str, default="fiqa", help="Config name in configs/")
 
-    # retrieval
-    parser.add_argument("--force_rebuild", action="store_true", help="Force rebuild retrieval database")
+    # # retrieval
+    # parser.add_argument("--force_rebuild", action="store_true", help="Force rebuild retrieval database")
 
     # LLM
-    parser.add_argument("--llm_model", type=str, default="./Models/Qwen2.5-14B-Instruct")
+    # parser.add_argument("--llm_model", type=str, default="./Models/Qwen2.5-14B-Instruct")
+    parser.add_argument("--llm_model", type=str, default="./Models/Qwen3-14B")
     parser.add_argument("--llm_base_url", type=str, default="http://localhost:22999/v1")
     parser.add_argument("--llm_api_key", type=str, default="EMPTY")
     parser.add_argument("--llm_temperature", type=float, default=0)
@@ -43,6 +44,7 @@ def parse_args():
     parser.add_argument("--rewriter", action="store_true", help="Whether to use query rewriting")
     parser.add_argument("--reranker", action="store_true", help="Whether to use reranker")
     parser.add_argument("--summarizer", action="store_true", help="Whether to use summarization")
+    parser.add_argument("--build_only", action="store_true", help="Only build the retrieval database and exit")
 
     # attack
     parser.add_argument("--attack", type=str, choices=["iter", "bbqg", "wbtq"], default="bbqg", help="Whether to use attack for query generation")
@@ -230,10 +232,15 @@ if __name__ == "__main__":
     cfg = getattr(configs, args.cfg_name) if hasattr(configs, args.cfg_name) else None
     if cfg is None:
         raise ValueError(f"Config {args.cfg_name} not found.")
-    
-    if args.attack in ["bbqg", "wbtq"]:
-        save_path = run_static(cfg, args)
-        # save_path = "exp/fiqa-chroma/bge-large-en-v1_5-Qwen2_5-7B-Instruct/mmr-15-bge-reranker-large-10/BAAI-bge-large-en-v1_5/f9b200/rewr-False_rerank-True_sum-False_wbtq.json"
-        evaluate_results(save_path)
+
+    if args.build_only:
+        print("Retrieval database built successfully. Exiting as --build_only is set.")
+        cfg.data["force_rebuild"] = args.build_only
+        retriever = VectorRetriever(cfg, device=args.device)
     else:
-        pass
+        if args.attack in ["bbqg", "wbtq"]:
+            save_path = run_static(cfg, args)
+            # save_path = "exp/fiqa-chroma/bge-large-en-v1_5-Qwen2_5-7B-Instruct/mmr-15-bge-reranker-large-10/BAAI-bge-large-en-v1_5/f9b200/rewr-False_rerank-True_sum-False_wbtq.json"
+            evaluate_results(save_path)
+        else:
+            pass

@@ -86,9 +86,10 @@ pip install langchain sentence-transformers rouge_score fire nltk pandas joblib 
         zmq.error.ZMQError: Function not implemented (addr='ipc:///data/qiu_workspace/zms/tmp/03004154-d90f-4e92-9e06-4822d4115312')
     ```
     多半是 NFS 挂载盘 或者容器里的共享目录 → 不支持 ipc://
-
+    或者出现“总线错误”
     可以尝试，明确其输出socket文件到本地 `export TMPDIR=/tmp`
-7. 如果没有使用reranker，那么实际上rewriter发挥的作用可能很小，所以期望rewriter一定和reranker一起使用
+7. 查看vllm当前的server有哪些 `ps aux | grep vllm`，防止之前的模型kill不干净
+8. 如果没有使用reranker，那么实际上rewriter发挥的作用可能很小，所以期望rewriter一定和reranker一起使用
 
 ## 代码结构
 

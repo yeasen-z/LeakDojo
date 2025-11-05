@@ -96,3 +96,6 @@ class RtfQueryGenerator(QueryGenerator):
     def extracted_data(self) -> List[str]:
         """Get all unique chunks in insertion order"""
         return list(self.memory)
+
+    def generate():
+        pass

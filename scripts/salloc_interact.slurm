@@ -28,8 +28,9 @@ nohup python -m vllm.entrypoints.openai.api_server \
     --dtype auto \
     --gpu-memory-utilization 0.88 > vllm.log 2>&1 &
 
-nohup python -m vllm.entrypoints.openai.api_server \
+CUDA_VISIBLE_DEVICES=0,1 nohup python -m vllm.entrypoints.openai.api_server \
     --model ./Models/Qwen2.5-14B-Instruct \
-    --port 22999 \
+    --port 22998 \
+    --tensor-parallel-size 2 \
     --dtype auto \
-    --gpu-memory-utilization 0.88 > vllm.log 2>&1 &
+    --gpu-memory-utilization 0.7 > vllm_22998.log 2>&1 &

@@ -4,49 +4,32 @@
 set +e
 
 # BBQG attacks
-python main.py \
-    --cfg_name fiqa --reranker \
-    --attack bbqg --entity_file ./attack_shop/entity_base/FinTech.json \
-    --attack_num 500 --batch_size 25 > bbqg_reranker_1118_q25_14b.log 2>&1
-
-python main.py \
-    --cfg_name fiqa --rewriter --reranker \
-    --attack bbqg --entity_file ./attack_shop/entity_base/FinTech.json \
-    --attack_num 500 --batch_size 25 > bbqg_rewriter_reranker_1119_q25_14b.log 2>&1
-
-python main.py \
-    --cfg_name fiqa --rewriter --reranker --summarizer \
-    --attack bbqg --entity_file ./attack_shop/entity_base/FinTech.json \
-    --attack_num 500 --batch_size 25 > bbqg_rewriter_reranker_sum_1120_q25_14b.log 2>&1
+nohup python main.py  \
+    --llm_model ./Models/Qwen2.5-14B-Instruct \
+    --llm_base_url http://localhost:22998/v1   \
+    --cfg_name fever_filtered  \
+    --rewriter --reranker \
+    --attack bbqg --attack_num 500 --batch_size 25 \
+    --entity_file ./attack_shop/entity_base/WikiHotGeneral.json  > bbqg_fever_filtered.log 2>&1 &
 
 # WBTQ attacks
-python main.py \
+nohup python main.py \
     --cfg_name fiqa --reranker \
     --attack wbtq \
-    --attack_num 500 --batch_size 25 > wbtq_reranker_1121_q25_14b.log 2>&1 &
-
-python main.py \
-    --cfg_name fiqa --rewriter --reranker \
-    --attack wbtq \
-    --attack_num 500 --batch_size 25 > wbtq_rewriter_reranker_1122_q25_14b.log 2>&1 &
-
-python main.py \
-    --cfg_name fiqa --rewriter --reranker --summarizer \
-    --attack wbtq \
-    --attack_num 500 --batch_size 25 > wbtq_rewriter_reranker_sum_1123_q25_14b.log 2>&1 &
+    --attack_num 500 --batch_size 25 > wbtq_reranker_1121_q3_32b.log 2>&1 &
 
 # IEGA attacks (using main_iter.py)
-python main_iter.py \
-    --cfg_name fiqa --reranker \
-    --attack iega \
-    --attack_num 500 --batch_size 25 > iega_reranker_1124_q25_14b.log 2>&1 &
+nohup python main_iega.py  \
+    --llm_model ./Models/Qwen2.5-14B-Instruct \
+    --llm_base_url http://localhost:22998/v1   \
+    --cfg_name fever_filtered  \
+    --rewriter --reranker \
+    --attack iega --attack_num 500 --batch_size 25  > iega_fever_filtered.log 2>&1 &
 
-python main_iter.py \
-    --cfg_name fiqa --reranker --rewriter \
-    --attack iega \
-    --attack_num 500 --batch_size 25 > iega_rewriter_reranker_1125_q25_14b.log 2>&1 &
-
-python main_iter.py \
-    --cfg_name fiqa --reranker --rewriter --summarizer \
-    --attack iega \
-    --attack_num 500 --batch_size 25 > iega_rewriter_reranker_summarizer_1126_q25_14b.log 2>&1 &
+# ICOA attacks
+nohup python main_icoa.py  \
+    --llm_model ./Models/Qwen2.5-14B-Instruct \
+    --llm_base_url http://localhost:22998/v1   \
+    --cfg_name fever_filtered  \
+    --rewriter --reranker \
+    --attack icoa --attack_num 500 --batch_size 25  > icoa_fever_filtered.log 2>&1 &

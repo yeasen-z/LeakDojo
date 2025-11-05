@@ -13,7 +13,8 @@ fiqa = VRConfig(
             }
         },
         "tool_llm": {
-            "model": "./Models/Qwen2.5-14B-Instruct",
+            # "model": "./Models/Qwen2.5-14B-Instruct",
+            "model": "./Models/Qwen3-14B",
             "base_url": "http://localhost:22999/v1",
             "api_key": "EMPTY",
             "reasoning": True,
