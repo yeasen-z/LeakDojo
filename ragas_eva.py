@@ -13,7 +13,7 @@ from ragas.metrics import LLMContextRecall, Faithfulness, FactualCorrectness
 from langchain_openai import ChatOpenAI
 import json
 
-llm = ChatOpenAI(base_url="http://localhost:22999/v1",
+llm = ChatOpenAI(base_url="http://localhost:22998/v1",
                 api_key="EMPTY", # Can be any string
                 model="./Models/Qwen2.5-14B-Instruct", timeout=300.0
                 )
@@ -46,7 +46,7 @@ def load_json_dataset(json_path: str):
     return ragas_dataset
 
 # dataset = load_json_dataset("exp/fiqa-chroma/bge-large-en-v1_5-Qwen3-32B/mmr-15-bge-reranker-large-10/BAAI-bge-large-en-v1_5/559ca4/rewr-False_rerank-True_sum-False_wbtq.json")
-dataset = load_json_dataset("exp/fiqa-chroma/bge-large-en-v1_5-Qwen3-32B/mmr-15-bge-reranker-large-10/BAAI-bge-large-en-v1_5/cf37be/rewr-True_rerank-True_sum-False_wbtq.json")
+dataset = load_json_dataset("/workspace/zms/Data/rag-llm/exp/fiqa-chroma/bge-large-en-v1_5-Qwen3-14B/mmr-15-bge-reranker-large-10/BAAI-bge-large-en-v1_5/668da4/rewr-False_rerank-True_sum-False_wbtq.json")
 
 # dataset = []
 

@@ -14,9 +14,11 @@ nohup python main.py  \
 
 # WBTQ attacks
 nohup python main.py \
-    --cfg_name fiqa --reranker \
-    --attack wbtq \
-    --attack_num 500 --batch_size 25 > wbtq_reranker_1121_q3_32b.log 2>&1 &
+    --llm_model ./Models/Qwen2.5-14B-Instruct \
+    --llm_base_url http://localhost:22998/v1   \
+    --cfg_name fever_filtered \
+    --rewriter --reranker \
+    --attack wbtq --attack_num 500 --batch_size 25 > wbtq_fever_filtered.log 2>&1 &
 
 # IEGA attacks (using main_iter.py)
 nohup python main_iega.py  \
