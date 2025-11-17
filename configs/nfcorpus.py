@@ -1,15 +1,15 @@
 from configs.config_base import *
 
-fiqa = VRConfig(
+nfcorpus = VRConfig(
     {
         "data": {
             "force_rebuild": False,
             "datastorage_tool": "chroma",
-            "data_dir_list": ["./data/fiqa/corpus.jsonl"],
+            "data_dir_list": ["./data/nfcorpus/corpus.jsonl"],
             "description": {
-                "name": "fiqa",
-                "type": "Finance",  # 映射英文类别
-                "intro": "a financial sentiment analysis benchmark derived from real-world sources such as StockTwits posts and financial news headlines.it enables models to understand market sentiment and investor opinions in financial contexts."
+                "name": "nfcorpus",
+                "type": "Medical/Clinical",  # 映射英文类别
+                "intro": "a medical corpus containing clinical notes and related medical texts, useful for natural language processing tasks in the healthcare domain."
             }
         },
         "tool_llm": {

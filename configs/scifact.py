@@ -1,15 +1,15 @@
 from configs.config_base import *
 
-fiqa = VRConfig(
+scifact = VRConfig(
     {
         "data": {
             "force_rebuild": False,
             "datastorage_tool": "chroma",
-            "data_dir_list": ["./data/fiqa/corpus.jsonl"],
+            "data_dir_list": ["./data/scifact/corpus.jsonl"],
             "description": {
-                "name": "fiqa",
-                "type": "Finance",  # 映射英文类别
-                "intro": "a financial sentiment analysis benchmark derived from real-world sources such as StockTwits posts and financial news headlines.it enables models to understand market sentiment and investor opinions in financial contexts."
+                "name": "scifact",
+                "type": "Academic/Research",  # 映射英文类别
+                "intro": "a scientific corpus containing research papers and related academic texts, useful for natural language processing tasks in the academic domain."
             }
         },
         "tool_llm": {

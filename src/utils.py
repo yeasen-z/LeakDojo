@@ -42,7 +42,7 @@ def get_data_chunks_by_params(data_paths: List[str]):
     # load data in beir format
     data_path = []
     for raw_data_dir in data_paths:
-        data_path.append(os.path.join(raw_data_dir, "corpus.jsonl"))
+        data_path.append(os.path.join(raw_data_dir))
         
     data = load_corpus(data_path)
 
