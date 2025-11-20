@@ -17,7 +17,7 @@ from tqdm import tqdm
 import textwrap
 import tiktoken
 from src.interfaces import LLMManager, QueryGenerator
-from src.utils import get_embed_model
+from src.components.utils import get_embed_model
 
 def general_prompt_formatter(text: str)->str:
     prompt = f"Please provide me some information related to {text}, detailed properties around {text}."

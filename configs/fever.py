@@ -13,10 +13,9 @@ fever = VRConfig(
             }
         },
         "tool_llm": {
-            "model": "./Models/Qwen2.5-14B-Instruct",
-            # "model": "./Models/Qwen3-14B",
-            "base_url": "http://localhost:22998/v1",
-            "api_key": "EMPTY",
+            "model": "gpt-4.1-mini",
+            "base_url": "https://aihubmix.com/v1",
+            "api_key": "sk-XWaGp10Cjy2pZfttA8E538967f7f4dA7A463F584C17b63Bf",
             "reasoning": True,
             "temperature": 0.7,
             "top_p": 0.8
@@ -30,16 +29,19 @@ fever = VRConfig(
             "embed": {
                 "provider": "hf",
                 "model_name": "bge-large-en-v1.5",
-                "model_dir": "./Models/BAAI-bge-large-en-v1.5",
+                "model_dir": "./Models/BAAI/bge-large-en-v1.5",
                 "retrival_database_batch_size": 256
             }
         },
         "reranker": {
-            "model": "BAAI/bge-reranker-large",
+            "provider": "hf",
+            "model": "./Models/BAAI/bge-reranker-large",
+            "api_key": None
         },
         "summarizer": {
             "provider": "hf",
-            "model": "./Models/BAAI-bge-large-en-v1.5"
+            "model": "./Models/BAAI/bge-large-en-v1.5",
+            "api_key": None
         }
     }
 )

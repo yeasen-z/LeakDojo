@@ -1,0 +1,20 @@
+{
+  "Rouge-L@0.5": {
+    "rouge_hit_count": 2,
+    "unique_contexts": 2,
+    "atks_ids": [
+      1,
+      2
+    ]
+  },
+  "evaluate_rougeL_atks": {
+    "max_percentage_leak": 1.0,
+    "avg_percentage_leak": 1.0
+  },
+  "Embedding Similarity@0.8": {
+    "num_effective_prompt": 2,
+    "num_extract_context": 4,
+    "avg_max_sim": 0.8209156592686971,
+    "avg_mean_sim": 0.7358811497688293
+  }
+}

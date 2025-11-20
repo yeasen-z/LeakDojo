@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Union, List
 
 
 class QueryGenerator(ABC):
@@ -53,4 +54,16 @@ class Pipeline(ABC):
     @abstractmethod
     def run(self, input_text: str) -> str:
         """流水线：将各组件串联起来，输入用户文本，输出最终结果"""
+        pass
+
+class IntentFilter(ABC):
+    @abstractmethod
+    def check_intent(self, user_input: Union[str, List[str]], verbose: bool = False) -> dict:
+        """意图过滤器：判断用户输入的意图是否安全"""
+        pass
+
+class ResponseFilter(ABC):
+    @abstractmethod
+    def check_output(self, llm_output: Union[str, List[str]]) -> str:
+        """输出过滤器：对 LLM 输出进行过滤和修正"""
         pass

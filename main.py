@@ -27,11 +27,7 @@ def parse_args():
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--cfg_name", type=str, default="fiqa", help="Config name in configs/")
 
-    # # retrieval
-    # parser.add_argument("--force_rebuild", action="store_true", help="Force rebuild retrieval database")
-
     # LLM
-    # parser.add_argument("--llm_model", type=str, default="./Models/Qwen2.5-14B-Instruct")
     parser.add_argument("--llm_model", type=str, default="./Models/Qwen3-14B")
     parser.add_argument("--llm_base_url", type=str, default="http://localhost:22999/v1")
     parser.add_argument("--llm_api_key", type=str, default="EMPTY")
@@ -47,7 +43,7 @@ def parse_args():
     parser.add_argument("--build_only", action="store_true", help="Only build the retrieval database and exit")
 
     # attack
-    parser.add_argument("--attack", type=str, choices=["iter", "bbqg", "wbtq"], default="bbqg", help="Whether to use attack for query generation")
+    parser.add_argument("--attack", type=str, choices=["iega", "icoa", "bbqg", "wbtq"], default="bbqg", help="Whether to use attack for query generation")
     parser.add_argument("--entity_file", type=str, default=None, help="Path to the entity file for better BBQG and iter attack")
     parser.add_argument("--attack_num", type=int, default=500, help="Number of attack queries to generate")
     parser.add_argument("--batch_size", type=int, default=50, help="Batch size for processing queries")
@@ -84,7 +80,7 @@ def setup(cfg, args):
     if args.rewriter and not args.reranker:
         print("[NOTING] Query rewriting is enabled but Reranker is disabled. It's recommended to use Query Rewriter with Reranker for better performance.")
 
-    summarizer = LLMHybridSummarization(llm_tool, embed_provider=cfg.summarizer["provider"], embed_model_dir=cfg.summarizer["model"], device='cuda:0')
+    summarizer = LLMHybridSummarization(llm_tool, sum_config=cfg.summarizer, device='cuda:0')
     constructor = SimplePromptConstructor()
 
     return llm, llm_tool, query_rewriter, retriever, reranker, summarizer, constructor

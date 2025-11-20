@@ -21,7 +21,7 @@ llm = ChatOpenAI(base_url="http://localhost:22998/v1",
 evaluator_llm = LangchainLLMWrapper(llm)
 
 embedding_model = HuggingFaceEmbeddings(
-    model_name="./Models/BAAI-bge-large-en-v1.5",
+    model_name="./Models/BAAI/bge-large-en-v1.5",
     encode_kwargs={"normalize_embeddings": True}
 
 )

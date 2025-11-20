@@ -68,7 +68,7 @@ def setup(cfg, args):
     llm_tool = OpenAILLM(model = cfg.tool_llm["model"], 
                     base_url = cfg.tool_llm["base_url"], 
                     api_key = cfg.tool_llm["api_key"], 
-                    reasoning = cfg.tool_llm["reasoning"],
+                    reasoning = False,
                     temperature = cfg.tool_llm["temperature"],
                     top_p = cfg.tool_llm["top_p"],
                     max_workers = 50)
@@ -84,7 +84,7 @@ def setup(cfg, args):
     if args.rewriter and not args.reranker:
         print("[NOTING] Query rewriting is enabled but Reranker is disabled. It's recommended to use Query Rewriter with Reranker for better performance.")
 
-    summarizer = LLMHybridSummarization(llm_tool, embed_provider=cfg.summarizer["provider"], embed_model_dir=cfg.summarizer["model"], device='cuda:0')
+    summarizer = LLMHybridSummarization(llm_tool, sum_config=cfg.summarizer, device='cuda:0')
     constructor = SimplePromptConstructor()
 
     return llm, llm_tool, query_rewriter, retriever, reranker, summarizer, constructor

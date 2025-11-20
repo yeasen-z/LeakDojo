@@ -10,7 +10,7 @@ class VRConfig:
         self.data = {
             "force_rebuild": False,
             "datastorage_tool": "chroma",
-            "data_dir_list": ["./data/fiqa"],
+            "data_dir_list": ["./data/fiqa/corpus.jsonl"],
             "description": {
                 "name": "fiqa",
                 "type": "Finance",  # 映射英文类别
@@ -33,16 +33,28 @@ class VRConfig:
             "embed": {
                 "provider": "hf",
                 "model_name": "bge-large-en-v1.5",
-                "model_dir": "./Models/BAAI-bge-large-en-v1.5",
-                "retrival_database_batch_size": 256
+                "model_dir": "./Models/BAAI/bge-large-en-v1.5",
+                "retrival_database_batch_size": 1024
             }
+            # "embed": {
+            #     "provider": "openai",
+            #     "model_name": "bge-large-en-v1.5",
+            #     "api_key": "YOUR_API_KEY",
+            #     "retrival_database_batch_size": 256
+            # }
         }
         self.reranker = {
-            "model": "BAAI/bge-reranker-large",
+            "provider": "hf",
+            "model": "./Models/BAAI/bge-reranker-large",
+            "api_key": None
         }
         self.summarizer = {
             "provider": "hf",
-            "model": "./Models/BAAI-bge-large-en-v1.5"
+            "model": "./Models/BAAI/bge-large-en-v1.5",
+            "api_key": None
+            # "provider": "openai",
+            # "model": "BAAI/bge-large-en-v1.5",
+            # "api_key": "YOUR_API_KEY"
         }
 
         if dict_config:
@@ -54,16 +66,14 @@ class VRConfig:
         self.data.update({
             "retrieval_name": retrieval_name,
             "retrieval_store_path": retrieval_store_path,
-            "wbtq_filepath": [os.path.join(i, "queries.jsonl") for i in self.data["data_dir_list"]]
+            "wbtq_filepath": [os.path.join(i.replace("corpus.jsonl", ""), "queries.jsonl") for i in self.data["data_dir_list"]]
         })
 
     def get_retrieval_info(self):
         """
         Get retrieval information from the configuration.
         """
-        retrieval_name = '_'.join(self.data["data_dir_list"])
-        if len(self.data["data_dir_list"]) != 1:
-            retrieval_name = 'mix_' + retrieval_name
+        retrieval_name = self.data["description"]["name"]
 
         retrieval_store_path = f"./retrieval_stores/{retrieval_name}/{self.retrieval['embed']['model_name']}/{self.data['datastorage_tool']}"
         return retrieval_name, retrieval_store_path
@@ -74,48 +84,88 @@ class VRConfig:
         self.retrieval.update(config.get("retrieval", {}))
         self.reranker.update(config.get("reranker", {}))
         self.summarizer.update(config.get("summarizer", {}))
-
-    def generate_expconfig(self, llm_model: str):
+    
+    def generate_exp_path(self, llm_generator_name: str):
+        """
+        路径结构: ./results/{DATASET}/{LLM_MODEL}/{RAG_CONFIG_TAG}/
+        """
         def sanitize_filename(name: str) -> str:
             # 替换所有非法字符： / \ : * ? " < > | 和 空格
-            return re.sub(r'[\\/:\*\?"<>\|\s]+', '_', name.strip())
-        
-        dataset = sanitize_filename(os.path.basename(self.data["description"]["name"]))
-        store = sanitize_filename(self.data["datastorage_tool"])
-        embed = sanitize_filename(self.retrieval["embed"]["model_name"].replace(".", "_"))
-        llm = sanitize_filename(os.path.basename(llm_model).replace(".", "_"))
-        k = self.retrieval["top_k"]
-        n = self.retrieval["top_n"]
-        retrieved_method = sanitize_filename(self.retrieval["method"])
-        reranker_mdl = sanitize_filename(os.path.basename(self.reranker["model"]).replace(".", "_"))
-        summarizer_mdl = sanitize_filename(os.path.basename(self.summarizer["model"]).replace(".", "_"))
-        time_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        unique_tag = hashlib.md5(f"{time_str}".encode()).hexdigest()[:6]
-        save_dir = f"./exp/{dataset}-{store}/{embed}-{llm}/{retrieved_method}-{k}-{reranker_mdl}-{n}/{summarizer_mdl}/{unique_tag}/"
+            if name is None:
+                return "None"
+            # 将路径分隔符替换为下划线，移除其他非法字符
+            # 使用下划线替换所有不安全字符
+            return re.sub(r'[\\/:\*\?"<>\|\s\.]+', '_', name.strip())
+
+        dataset = sanitize_filename(os.path.basename(self.data.get("description", {}).get("name", "UnknownDataset")))
+        llm_name = sanitize_filename(os.path.basename(llm_generator_name))
+        rag_config_parts = []
+        retrieval_method = self.retrieval.get("method", "BM25")
+        retrieval_tag = f"R_{sanitize_filename(retrieval_method)}"
+        embed_name = self.retrieval.get("embed", {}).get("model_name")
+        if embed_name and retrieval_method.lower() not in ['bm25', 'fid']:
+            retrieval_tag = f"R__{sanitize_filename(embed_name)}" 
+        retrieval_tag += f"_k{self.retrieval.get('top_k', 5)}"
+        rag_config_parts.append(retrieval_tag)
+
+        if self.reranker:
+            reranker_mdl = self.reranker.get("model", "UnknownReranker")
+            reranker_tag = f"RR__{sanitize_filename(os.path.basename(reranker_mdl))}_n{self.retrieval.get('top_n', 3)}"
+            rag_config_parts.append(reranker_tag)
+        else:
+            rag_config_parts.append(f"NoRR_n{self.retrieval.get('top_n', 3)}") # 即使没有 Reranker，也记录最终的 Top N
+
+        if self.summarizer:
+            summarizer_mdl = self.summarizer.get("model", "UnknownSummarizer")
+            summarizer_tag = f"S__{sanitize_filename(os.path.basename(summarizer_mdl))}"
+            rag_config_parts.append(summarizer_tag)
+        else:
+            rag_config_parts.append("NoS")
+            
+        rag_config_tag = "-".join(rag_config_parts)
+
+        # --- 3. 最终路径结构 ---
+        save_dir = os.path.join(
+            "./results",
+            dataset,
+            llm_name,
+            rag_config_tag,
+            ""
+        )
+        print(f"[INFO] Generated save directory: {save_dir}")
         return save_dir
 
-    def generate_expfilename(self, args=None, ext=".json"):
+    def generate_exp_filename(self, args: Any, suf_route: str, ext: str = ".jsonl") -> str:
         """
-        生成唯一的实验文件名（不包含路径）。
-        文件名中会包含关键信息（dataset、attack、llm、retrieval参数、时间戳等）。
+        生成完整的、可稳定重现的实验结果文件名。
+        Args:
+            args: 包含 attack, rewriter, reranker, summarizer 等运行时参数的对象。
+            ext: 文件扩展名 (默认为 .jsonl)。
         """
-        def sanitize(name: str) -> str:
-            return re.sub(r'[\\/:\*\?"<>\|\s]+', '_', str(name).strip())
+        
+        def sanitize_filename(name: str) -> str:
+            # 替换所有非法字符： / \ : * ? " < > | 和 空格, 且替换 . 为 _
+            if name is None:
+                return "None"
+            return re.sub(r'[\\/:\*\?"<>\|\s\.]+', '_', name.strip())
 
-        # === 运行参数 ===
-        attack = getattr(args, "attack", "noatk") if args else "noatk"
-        rewriter = getattr(args, "rewriter", False)
-        reranker = getattr(args, "reranker", False)
-        summarizer = getattr(args, "summarizer", False)
-
-        # === 唯一标识（时间戳 + 哈希） ===
-        # time_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        # unique_tag = hashlib.md5(f"{attack}_{time_str}".encode()).hexdigest()[:6]
-
-        # === 文件名组合 ===
+        attack_method = sanitize_filename(getattr(args, "attack", "no_attack").upper()) 
+        rag_config_parts = []
+        if getattr(args, "rewriter", False):
+            rag_config_parts.append("RW") 
+        else:
+            rag_config_parts.append("NoRW")
+            
         filename = (
-            f"rewr-{rewriter}_rerank-{reranker}_sum-{summarizer}_"
-            f"{attack}{ext}"
+            f"{attack_method}_"
+            f"RW-{int(getattr(args, 'rewriter', False))}_" # 1/0 表示是否启用
+            f"RR-{int(getattr(args, 'reranker', False))}_"
+            f"S-{int(getattr(args, 'summarizer', False))}_"
+            f"IF-{int(getattr(args, 'intent_filter', False))}_"
+            f"OF-{int(getattr(args, 'output_filter', False))}_"
+            f"{sanitize_filename(suf_route)}"
+            f"{ext}"
         )
-
+        
+        print(f"[INFO] Generated save path: {filename}")
         return filename

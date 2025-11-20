@@ -1,6 +1,6 @@
 # GdRAG
 data/
-retrieval_stores/data/*
+retrieval_stores/*
 Models/
 exp/*
 exp_old/*

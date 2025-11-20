@@ -6,7 +6,7 @@ from rouge_score import rouge_scorer
 wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 from src.interfaces import LLMManager, QueryGenerator
-from src.utils import get_embed_model
+from src.components.utils import get_embed_model
 
 class RtfQueryGenerator(QueryGenerator):
     def __init__(self, llm: LLMManager):
