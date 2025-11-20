@@ -193,9 +193,6 @@ class IKEAQueryGenerator(QueryGenerator):
             else:
                 self._generate_new_words(generation_num, extra_demand, mode='general')
                 self.shuffle_into_queries(prior_related_th=shuffle_topic_th, unsimilar_th=shuffle_unsim_th)
-            
-            # raise ValueError("No valid words in counter db.")
-            # return None
 
     def compute_scores(self, 
                      query_prompts: List[str],
@@ -284,7 +281,6 @@ class IKEAQueryGenerator(QueryGenerator):
             avg_scores = torch.nan_to_num(avg_scores, nan=0.0, posinf=0.0, neginf=0.0)
         topk_scores, topk_indices = torch.topk(avg_scores, actual_k)
         prompts = [query_prompts[i] for i in topk_indices.cpu().tolist()]
-        
         
         # for debug
         if debug:
@@ -692,8 +688,6 @@ class IKEAQueryGenerator(QueryGenerator):
     
     def generate():
         pass
-
-
 
 def chunked_matmul(A:Tensor, B:Tensor, step:int, show_progress:bool=False):
     """Matrix multiply, but A is divided into chunks to reduce memory usage.

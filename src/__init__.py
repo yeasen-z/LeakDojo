@@ -7,4 +7,4 @@ from .components import VectorRetriever, RerankerManager, LLMHybridSummarization
 
 from .skuas import BlackBoxQueryGenerator, WhiteBoxQueryLoader, IKEAQueryGenerator, RtfQueryGenerator
 
-from .pipeline import RAGPipeline, AtkStaticPipeline, setup, chunked, evaluate_results
+from .pipeline import RAGPipeline, AtkStaticPipeline, AtkICOAPipeline, AtkIEGAPipeline, setup, chunked, evaluate_results
