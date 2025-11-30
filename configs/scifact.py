@@ -9,7 +9,7 @@ scifact = VRConfig(
             "description": {
                 "name": "scifact",
                 "type": "Academic/Research",  # 映射英文类别
-                "intro": "a scientific corpus containing research papers and related academic texts, useful for natural language processing tasks in the academic domain."
+                "intro": "a dataset of expert-written scientific claims paired with evidence-containing abstracts, and annotated with labels and rationales."
             }
         },
         "tool_llm": {
@@ -38,7 +38,7 @@ scifact = VRConfig(
             "model": "./Models/BAAI/bge-reranker-large",
             "api_key": None
         },
-        "summarizer": {
+        "extractor": {
             "provider": "hf",
             "model": "./Models/BAAI/bge-large-en-v1.5",
             "api_key": None

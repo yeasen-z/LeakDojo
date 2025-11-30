@@ -1,17 +1,17 @@
 from src.interfaces import Pipeline
-from src.interfaces import LLMManager, QueryRewriter, Retriever, Reranker, Summarizer, PromptConstructor, IntentFilter, ResponseFilter
+from src.interfaces import LLMManager, QueryRewriter, Retriever, Reranker, Extractor, PromptConstructor, IntentFilter, ResponseFilter
 from typing import List
 
 class RAGPipeline(Pipeline):
     def __init__(self, 
-                 llm: LLMManager, query_rewriter: QueryRewriter, retriever: Retriever, reranker: Reranker, summarizer: Summarizer, constructor: PromptConstructor, 
+                 llm: LLMManager, query_rewriter: QueryRewriter, retriever: Retriever, reranker: Reranker, extractor: Extractor, constructor: PromptConstructor, 
                  intent_filter: IntentFilter, output_filter: ResponseFilter, 
                  cfg, args):
         self.llm = llm
         self.query_rewriter = query_rewriter
         self.retriever = retriever
         self.reranker = reranker
-        self.summarizer = summarizer
+        self.extractor = extractor
         self.constructor = constructor
         self.intent_filter = intent_filter
         self.output_filter = output_filter
@@ -47,16 +47,16 @@ class RAGPipeline(Pipeline):
             doc_ids = [i[:self.cfg.retrieval["top_n"]] for i in doc_ids]
             # 返回格式为 List[List[str]]
 
-        if self.args.summarizer:
-            summarized_contexts = self.summarizer.summarize(contexts, original_queries)
+        if self.args.extractor:
+            extracted_contexts = self.extractor.extract(contexts, original_queries)
         else:
-            summarized_contexts = contexts
+            extracted_contexts = contexts
 
-        prompt = self.constructor.batch_construct(cleaned_batch_queries, summarized_contexts)
+        prompt = self.constructor.batch_construct(cleaned_batch_queries, extracted_contexts)
         # print("[Example Prompt]", prompt[0])
         answers, reasons = self.llm.batch_infer(prompt)
 
         if self.args.output_filter:
             pass
 
-        return cleaned_batch_queries, contexts, doc_ids, prompt, answers, reasons, rewritten_queries_list, summarized_contexts
+        return cleaned_batch_queries, contexts, doc_ids, prompt, answers, reasons, rewritten_queries_list, extracted_contexts

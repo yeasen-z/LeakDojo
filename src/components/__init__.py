@@ -1,4 +1,4 @@
-from .retrieval import VectorRetriever, RerankerManager, LLMHybridSummarization
+from .retrieval import VectorRetriever, RerankerManager, LLMHybridExtractor
 from .prompts import LLMQueryRewriter, SimplePromptConstructor
 from .llm import OpenAILLM
 from .scoring import RougeEvaluator, LiteralEvaluator, EmbeddingEvaluator, CrossEncoderEvaluator

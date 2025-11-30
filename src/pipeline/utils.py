@@ -1,4 +1,4 @@
-from src.components import OpenAILLM, LLMQueryRewriter, VectorRetriever, RerankerManager, LLMHybridSummarization, SimplePromptConstructor
+from src.components import OpenAILLM, LLMQueryRewriter, VectorRetriever, RerankerManager, LLMHybridExtractor, SimplePromptConstructor
 from src.components import LLMIntentFilter, RougeLResponseFilter
 
 def chunked(iterable, batch_size):
@@ -36,9 +36,9 @@ def setup(cfg, args):
     if args.rewriter and not args.reranker:
         print("[NOTING] Query rewriting is enabled but Reranker is disabled. It's recommended to use Query Rewriter with Reranker for better performance.")
 
-    summarizer = LLMHybridSummarization(llm_tool, sum_config=cfg.summarizer, device='cuda:0')
+    extractor = LLMHybridExtractor(llm_tool, extract_config=cfg.extractor, device='cuda:9')
     constructor = SimplePromptConstructor()
 
     intent_filter, output_filter = LLMIntentFilter(llm_tool=llm_tool), RougeLResponseFilter()
     
-    return llm, llm_tool, intent_filter, output_filter, query_rewriter, retriever, reranker, summarizer, constructor
+    return llm, llm_tool, intent_filter, output_filter, query_rewriter, retriever, reranker, extractor, constructor

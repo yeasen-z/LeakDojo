@@ -80,7 +80,7 @@ def setup(cfg, args):
     if args.rewriter and not args.reranker:
         print("[NOTING] Query rewriting is enabled but Reranker is disabled. It's recommended to use Query Rewriter with Reranker for better performance.")
 
-    summarizer = LLMHybridSummarization(llm_tool, sum_config=cfg.summarizer, device='cuda:0')
+    summarizer = LLMHybridSummarization(llm_tool, extract_config=cfg.summarizer, device='cuda:0')
     constructor = SimplePromptConstructor()
 
     return llm, llm_tool, query_rewriter, retriever, reranker, summarizer, constructor

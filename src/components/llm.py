@@ -7,10 +7,10 @@ from functools import partial
 from src.interfaces import LLMManager
 
 
-MODELS_THINKING_SUPPORT = [
-    "Qwen3-4B", "Qwen3-8B", "Qwen3-14B", "Qwen3-32B",
-    "qwen3-4b", "qwen3-8b", "qwen3-14b", "qwen3-32b",
-    ]
+# MODELS_THINKING_SUPPORT = [
+#     "Qwen3-4B", "Qwen3-8B", "Qwen3-14B", "Qwen3-32B",
+#     "qwen3-4b", "qwen3-8b", "qwen3-14b", "qwen3-32b",
+#     ]
 
 
 class OpenAILLM(LLMManager):
@@ -35,38 +35,36 @@ class OpenAILLM(LLMManager):
         self.max_gen_len = max_gen_len
 
         self.client = OpenAI(base_url=self.base_url, api_key=self.api_key)
-
-    # def _call_api(self, prompt: str, temperature: float = None, top_p: float = None) -> str:
-    #     """普通模式调用"""
-    #     if temperature is None or top_p is None:
-    #         temperature = self.temperature
-    #         top_p = self.top_p
-    #     response = self.client.chat.completions.create(
-    #         model=self.model,
-    #         messages=[{"role": "user", "content": prompt}],
-    #         temperature=temperature,
-    #         top_p=top_p,
-    #         max_tokens=self.max_gen_len,
-    #     )
-
-    #     content = getattr(response.choices[0].message, "content", "") or ""
-    #     if content == "":
-    #         print("Warning: empty answer from LLM.")
-    #     return content.strip()
-    
-    def _call_api(self, prompt: str, temperature: float = None, top_p: float = None) -> str:
+  
+    def _call_api(self, prompt: str, temperature: float = None, top_p: float = None, sysprompt: str = None) -> str:
         """普通模式调用"""
         if temperature is None or top_p is None:
             temperature = self.temperature
             top_p = self.top_p
-        response_stream = self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=temperature,
-            top_p=top_p,
-            max_tokens=self.max_gen_len,
-            stream=True, 
-        )
+        
+        if sysprompt is None:
+            response_stream = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=self.max_gen_len,
+                stream=True, 
+            )
+        else:
+            response_stream = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": sysprompt} if sysprompt else None,
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=self.max_gen_len,
+                stream=True, 
+            )
         collected_content = []
                 
         for chunk in response_stream:
@@ -79,38 +77,34 @@ class OpenAILLM(LLMManager):
         full_content = "".join(collected_content).strip()
 
         return full_content
-
-    # def _call_api_with_reasoning(self, prompt: str, temperature: float = None, top_p: float = None):
-    #     """带 reasoning_content 的模型调用"""
-    #     if temperature is None or top_p is None:
-    #         temperature = self.temperature
-    #         top_p = self.top_p
-    #     response = self.client.chat.completions.create(
-    #         model=self.model,
-    #         messages=[{"role": "user", "content": prompt}],
-    #         temperature=temperature,
-    #         top_p=top_p,
-    #         max_tokens=self.max_gen_len
-    #     )
-
-    #     content = getattr(response.choices[0].message, "content", "") or ""
-    #     reasoning = getattr(response.choices[0].message, "reasoning_content", "") or ""
-    #     # print("Length of reasoning content:", len(reasoning.split()))
-    #     return content.strip(), reasoning.strip()
     
-    def _call_api_with_reasoning(self, prompt: str, temperature: float = None, top_p: float = None):
+    def _call_api_with_reasoning(self, prompt: str, temperature: float = None, top_p: float = None, sysprompt: str = None):
         if temperature is None or top_p is None:
             temperature = self.temperature
             top_p = self.top_p
-        response_stream = self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=temperature,
-            top_p=top_p,
-            max_tokens=self.max_gen_len,
-            stream=True, 
-            extra_body={"enable_thinking": True}
-        )
+        if sysprompt is None:
+            response_stream = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=self.max_gen_len,
+                stream=True, 
+            )
+        else:
+            response_stream = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": sysprompt} if sysprompt else None,
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=temperature,
+                top_p=top_p,
+                max_tokens=self.max_gen_len,
+                stream=True, 
+            )
         collected_content = []
         collected_reasoning = []
         
@@ -132,32 +126,33 @@ class OpenAILLM(LLMManager):
 
         return full_content, full_reasoning
 
-    def infer(self, prompt: str, temperature: float = None, top_p: float = None) -> str:
+    def infer(self, prompt: str, temperature: float = None, top_p: float = None, sysprompt: str = None) -> str:
         """单条推理（接口定义要求）"""
         if temperature is None or top_p is None:
             temperature = self.temperature
             top_p = self.top_p
-        if self.reasoning and os.path.basename(self.model) in MODELS_THINKING_SUPPORT:
-            answers, reasons = self._call_api_with_reasoning(prompt, temperature, top_p)
+        # if self.reasoning and os.path.basename(self.model) in MODELS_THINKING_SUPPORT:
+        if self.reasoning:
+            answers, reasons = self._call_api_with_reasoning(prompt, temperature, top_p, sysprompt)
             return answers, reasons
         else:
-            return self._call_api(prompt), None
+            return self._call_api(prompt, sysprompt), None
 
-    def batch_infer(self, all_prompts: List[str], temperature: float = None, top_p: float = None) -> List[str]:
+    def batch_infer(self, all_prompts: List[str], temperature: float = None, top_p: float = None, sysprompt: str = None) -> List[str]:
         """批量推理，带多线程"""
         if temperature is None or top_p is None:
             temperature = self.temperature
             top_p = self.top_p
         answers, reasons = [], []
 
-        reasoning_mode = (
-            self.reasoning and
-            os.path.basename(self.model) in MODELS_THINKING_SUPPORT
-        )
+        # reasoning_mode = (
+        #     self.reasoning and
+        #     os.path.basename(self.model) in MODELS_THINKING_SUPPORT
+        # )
 
-        partial_infer = partial(self.infer, temperature=temperature, top_p=top_p)
+        partial_infer = partial(self.infer, temperature=temperature, top_p=top_p, sysprompt=sysprompt)
 
-        with ThreadPoolExecutor(max_workers=50) as executor:
+        with ThreadPoolExecutor(max_workers=8) as executor:
             # if reasoning_mode:
             #     results = list(executor.map(self._call_api_with_reasoning, all_prompts))
             # else:

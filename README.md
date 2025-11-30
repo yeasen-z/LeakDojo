@@ -94,7 +94,7 @@ pip install langchain sentence-transformers rouge_score fire nltk pandas joblib 
 ## 代码结构
 
 ### 参考指令
-1. 运行主流程（bbqg + rewriter + reranker + summarizer）
+1. 运行主流程（bbqg + rewriter + reranker）
     ```
     python main.py \
     --device cuda:1 \

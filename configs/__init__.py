@@ -6,6 +6,7 @@ from .enronmail import enronmail
 from .nfcorpus import nfcorpus
 from .twcs import twcs
 from .arguana import arguana
+from .chatdoctor import chatdoctor
 
 __all__ = [
     "VRConfig", 
@@ -15,5 +16,6 @@ __all__ = [
     "enronmail",
     "nfcorpus",
     "twcs",
-    "arguana"
+    "arguana",
+    "chatdoctor"
     ]

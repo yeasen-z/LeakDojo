@@ -26,9 +26,9 @@ class Reranker(ABC):
         """可选：对检索到的文档重新排序"""
         pass
 
-class Summarizer(ABC):
+class Extractor(ABC):
     @abstractmethod
-    def summarize(self, chunks: list) -> str:
+    def extract(self, chunks: list) -> str:
         """可选：对长文档进行分块摘要"""
         pass
 

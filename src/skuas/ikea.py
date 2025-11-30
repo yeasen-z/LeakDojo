@@ -1,5 +1,3 @@
-# Iterative Embedding-Guided Attack (IEGA)
-
 import json
 import random
 import re
@@ -390,18 +388,12 @@ class IKEAQueryGenerator(QueryGenerator):
             extra_demand = '5. ' + extra_demand
 
         prompt = textwrap.dedent(f"""
-                    Generate a structured list of {number} anchor words related to the topic: {self.data_description["type"]}. {difference_constraint}
-                    Your generated anchor words must:
-                    Be distinct and contextually relevant. And could reasonably appear in this domain.
-                    Be specific, diverse, and meaningful within the database region (e.g., organizations, places, events, systems, or terms).
-                    Think briefly. Limit internal reasoning to several sentences before giving the final answer.
+                    Generate a structured list of {number} **anchor words** related to the topic: **{self.data_description["type"]}**. {difference_constraint}Your Generated anchor words should be:
 
-                    Output format requirements:
-                    - Output only the entity names.
-                    - Do not repeat any items or steps in your reasoning and output.
-                    - Each entity must appear on a separate line.
-
-                    Optional additional constraint:
+                    1. **Highly representative** of the topic, covering key aspects.
+                    2. **Distinctive yet broad**, ensuring effective retrieval of relevant knowledge.
+                    3. **Diverse**, including domain-specific terms, common collocations, and conceptual keywords.
+                    4. **Formatted in JSON**, so it can be easily parsed programmatically.
                     {extra_demand}
 
                     Example output:
@@ -432,11 +424,7 @@ class IKEAQueryGenerator(QueryGenerator):
         
         prompt = textwrap.dedent(f"""
                     Generate a structured list of {number} **anchor words or phases or short sentences** related to the topic: **{self.data_description["type"]}**. {difference_constraint}Your Generated anchor words should be:
-                    You should try to distinguish between different aspects of the topic, covering various subtopics, entities, events, or concepts within the domain.
-                    {extra_demand}
 
-                    Output format requirements:
-                    - Output only the entity names.
                     - Do not repeat any items or steps in your reasoning and output.
                     - Each entity must appear on a separate line.
 
@@ -526,7 +514,7 @@ class IKEAQueryGenerator(QueryGenerator):
                              old_prompt:str, old_answer:str, 
                              search_mode:str = 'auto', if_hard_constraint:bool=True, auto_outclusive_ratio=0.5,
                              sim_with_oldans:float=0.45, unsim_with_oldpmpt:float=0.3, epsilon:float=0.05,
-                             max_tries:int=20, generation_num:int=20,
+                             max_tries:int=5, generation_num:int=20,
                              prompt_sim_stop_th:float=0.4, prompt_check_num:int=3,answer_sim_stop_th:float=0.4, answer_check_num:int=3,
                              if_verbose:bool=False):
         """有向变异

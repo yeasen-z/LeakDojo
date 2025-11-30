@@ -38,7 +38,7 @@ fiqa = VRConfig(
             "model": "./Models/BAAI/bge-reranker-large",
             "api_key": None
         },
-        "summarizer": {
+        "extractor": {
             "provider": "hf",
             "model": "./Models/BAAI/bge-large-en-v1.5",
             "api_key": None

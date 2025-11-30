@@ -1,15 +1,15 @@
 from configs.config_base import *
 
-arguana = VRConfig(
+chatdoctor = VRConfig(
     {
         "data": {
             "force_rebuild": False,
             "datastorage_tool": "chroma",
-            "data_dir_list": ["./data/arguana/corpus.jsonl"],
+            "data_dir_list": ["./data/chatdoctor/corpus.jsonl"],
             "description": {
-                "name": "arguana",
-                "type": "Social Media/Chat",  # 映射英文类别
-                "intro": "ArguAna is a dataset for argument-retrieval in the BEIR benchmark, containing English queries and counter-argumentative texts."
+                "name": "chatdoctor",
+                "type": "Medical/Clinical",  # 映射英文类别
+                "intro": "a medical question answering benchmark derived from real-world sources such as medical forums and healthcare articles. it enables models to understand and respond to medical inquiries accurately."
             }
         },
         "tool_llm": {
@@ -30,7 +30,7 @@ arguana = VRConfig(
                 "provider": "hf",
                 "model_name": "bge-large-en-v1.5",
                 "model_dir": "./Models/BAAI/bge-large-en-v1.5",
-                "retrival_database_batch_size": 256
+                "retrival_database_batch_size": 512
             }
         },
         "reranker": {

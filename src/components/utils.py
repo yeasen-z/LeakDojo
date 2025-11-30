@@ -60,7 +60,7 @@ def load_save_helper(file_path: str) -> Dict:
     return data
 
 
-def get_embed_model(embed_provider, embed_model_dir, retrival_database_batch_size=32, device="cuda:1"):
+def get_embed_model(embed_provider, embed_model_dir, retrival_database_batch_size=128, device="cuda:1"):
     if embed_provider == 'openai':
         embed_model = OpenAIEmbeddings()
     elif embed_provider == 'hf':

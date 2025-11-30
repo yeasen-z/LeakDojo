@@ -48,7 +48,7 @@ class VRConfig:
             "model": "./Models/BAAI/bge-reranker-large",
             "api_key": None
         }
-        self.summarizer = {
+        self.extractor = {
             "provider": "hf",
             "model": "./Models/BAAI/bge-large-en-v1.5",
             "api_key": None
@@ -83,7 +83,7 @@ class VRConfig:
         self.tool_llm.update(config.get("tool_llm", {}))
         self.retrieval.update(config.get("retrieval", {}))
         self.reranker.update(config.get("reranker", {}))
-        self.summarizer.update(config.get("summarizer", {}))
+        self.extractor.update(config.get("extractor", {}))
     
     def generate_exp_path(self, llm_generator_name: str):
         """
@@ -115,12 +115,12 @@ class VRConfig:
         else:
             rag_config_parts.append(f"NoRR_n{self.retrieval.get('top_n', 3)}") # 即使没有 Reranker，也记录最终的 Top N
 
-        if self.summarizer:
-            summarizer_mdl = self.summarizer.get("model", "UnknownSummarizer")
-            summarizer_tag = f"S__{sanitize_filename(os.path.basename(summarizer_mdl))}"
-            rag_config_parts.append(summarizer_tag)
+        if self.extractor:
+            extractor_mdl = self.extractor.get("model", "UnknownExtractor")
+            extractor_tag = f"EX__{sanitize_filename(os.path.basename(extractor_mdl))}"
+            rag_config_parts.append(extractor_tag)
         else:
-            rag_config_parts.append("NoS")
+            rag_config_parts.append("NoEX")
             
         rag_config_tag = "-".join(rag_config_parts)
 
@@ -139,7 +139,7 @@ class VRConfig:
         """
         生成完整的、可稳定重现的实验结果文件名。
         Args:
-            args: 包含 attack, rewriter, reranker, summarizer 等运行时参数的对象。
+            args: 包含 attack, rewriter, reranker, extractor 等运行时参数的对象。
             ext: 文件扩展名 (默认为 .jsonl)。
         """
         
@@ -150,17 +150,12 @@ class VRConfig:
             return re.sub(r'[\\/:\*\?"<>\|\s\.]+', '_', name.strip())
 
         attack_method = sanitize_filename(getattr(args, "attack", "no_attack").upper()) 
-        rag_config_parts = []
-        if getattr(args, "rewriter", False):
-            rag_config_parts.append("RW") 
-        else:
-            rag_config_parts.append("NoRW")
-            
+
         filename = (
             f"{attack_method}_"
             f"RW-{int(getattr(args, 'rewriter', False))}_" # 1/0 表示是否启用
             f"RR-{int(getattr(args, 'reranker', False))}_"
-            f"S-{int(getattr(args, 'summarizer', False))}_"
+            f"EX-{int(getattr(args, 'extractor', False))}_"
             f"IF-{int(getattr(args, 'intent_filter', False))}_"
             f"OF-{int(getattr(args, 'output_filter', False))}_"
             f"{sanitize_filename(suf_route)}"

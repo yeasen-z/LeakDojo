@@ -50,7 +50,8 @@ BBQ_DOMAIN_WEIGHTS = {
     "Social Media/Chat":  {"A":0.10,"B":0.10,"C":0.10,"D":0.10,"E":0.40,"F":0.20},
     "Technical Docs/FAQ": {"A":0.25,"B":0.30,"C":0.25,"D":0.10,"E":0.05,"F":0.05},
     "Historical Archives":{"A":0.15,"B":0.10,"C":0.15,"D":0.35,"E":0.10,"F":0.15},
-    "Finance":            {"A":0.25,"B":0.25,"C":0.15,"D":0.10,"E":0.15,"F":0.10}
+    "Finance":            {"A":0.25,"B":0.25,"C":0.15,"D":0.10,"E":0.15,"F":0.10},
+    "Connection Mails":   {"A":0.10,"B":0.10,"C":0.10,"D":0.10,"E":0.40,"F":0.20}
 }
 
 class BlackBoxQueryGenerator(QueryGenerator):

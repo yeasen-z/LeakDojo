@@ -1,7 +1,8 @@
 from typing import List, Tuple, Union, Iterable
 import os, shutil, torch
 from FlagEmbedding import FlagReranker
-from langchain.schema import BaseRetriever
+# from langchain.schema import BaseRetriever
+from langchain_core.retrievers import BaseRetriever
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
@@ -12,7 +13,7 @@ import torch.nn.functional as F
 import textwrap
 from .utils import get_data_chunks_by_params
 
-from src.interfaces import Retriever, Reranker, Summarizer, LLMManager
+from src.interfaces import Retriever, Reranker, Extractor, LLMManager
 
 class VectorRetriever(Retriever):
     def __init__(self, config: VRConfig, device: str = 'cpu'):
@@ -250,11 +251,11 @@ class RerankerManager(Reranker):
 
         return all_reranked_docs, all_reranked_doc_ids
 
-class LLMHybridSummarization(Summarizer):
+class LLMHybridExtractor(Extractor):
     """ Hybrid抽取式压缩：分句 + 短句合并 + Embedding筛选 + Query-aware压缩， 使用LLM"""
     def __init__(self,
                  llm: LLMManager,
-                 sum_config: dict,
+                 extract_config: dict,
                  device: str = 'cpu', 
                  retain_ratio: float = 0.8, 
                  retain_floor: int = 10,
@@ -262,9 +263,9 @@ class LLMHybridSummarization(Summarizer):
                  embed_batch_size: int = 256
                  ):
         self.llm = llm
-        self.embed_provider = sum_config.get("provider", "hf")
-        self.embed_model = sum_config.get("model", "./Models/BAAI/bge-large-en-v1.5")
-        self.embed_api_key = sum_config.get("api_key", None)
+        self.embed_provider = extract_config.get("provider", "hf")
+        self.embed_model = extract_config.get("model", "./Models/BAAI/bge-large-en-v1.5")
+        self.embed_api_key = extract_config.get("api_key", None)
         self.retain_ratio = retain_ratio
         self.retain_floor = retain_floor
         self.short_sent_threshold = short_sent_threshold
@@ -310,7 +311,7 @@ class LLMHybridSummarization(Summarizer):
                     model_kwargs={'device': self.device},
                     encode_kwargs={'device': self.device, 'batch_size': self.embed_batch_size,"normalize_embeddings": True}
                     )
-                print(f"[INFO] Summarizer embedding model {self.embed_model} loaded successfully.")
+                print(f"[INFO] Extractor embedding model {self.embed_model} loaded successfully.")
             except self.embed_model:
                 raise Exception(f"Encoder {self.embed_model} not found, please check.")
         return embed_model
@@ -332,10 +333,12 @@ class LLMHybridSummarization(Summarizer):
 
         doc_emb = embs.mean(dim=0, keepdim=True)
         sims = F.cosine_similarity(embs, doc_emb)
-        topk = max(1, self.retain_floor, int(len(sentences) * self.retain_ratio))
+        # topk = max(1, self.retain_floor, int(len(sentences) * self.retain_ratio))
+        topk_raw = max(1, self.retain_floor, int(len(sentences) * self.retain_ratio))
+        topk = min(topk_raw, len(sentences))
         top_idx = sims.topk(topk).indices.tolist()
         return [sentences[i] for i in sorted(top_idx)]
-
+        
     def _query_filter(self, sentences: List[str], query: str) -> List[str]:
         
         extracted = []
@@ -368,7 +371,7 @@ class LLMHybridSummarization(Summarizer):
         return extracted
 
 
-    def summarize(self, documents: List[List[str]], queries: List[List[str]]) -> List[List[str]]:
+    def extract(self, documents: List[List[str]], queries: List[List[str]]) -> List[List[str]]:
         """
             对输入的文档列表进行抽取式压缩，返回压缩后的文档列表
             这里的格式为：

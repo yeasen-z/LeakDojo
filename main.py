@@ -1,11 +1,6 @@
-from src import RAGPipeline, AtkStaticPipeline, AtkIEGAPipeline, AtkICOAPipeline, setup, chunked, evaluate_results
-from src import VectorRetriever, RerankerManager, LLMHybridSummarization
-from src import LLMQueryRewriter, SimplePromptConstructor
-from src import BlackBoxQueryGenerator, WhiteBoxQueryLoader
-from src import OpenAILLM
-from src import RougeEvaluator, LiteralEvaluator, EmbeddingEvaluator, CrossEncoderEvaluator
+from src import AtkStaticPipeline, AtkIKEAPipeline, AtkRTFPipeline
+from src import VectorRetriever
 import argparse
-import os
 import json
 import configs
 
@@ -42,13 +37,13 @@ def parse_args():
     parser.add_argument("--reasoning", action="store_true", help="Whether to save the reasoning content of thinking models")
     parser.add_argument("--rewriter", action="store_true", help="Whether to use query rewriting")
     parser.add_argument("--reranker", action="store_true", help="Whether to use reranker")
-    parser.add_argument("--summarizer", action="store_true", help="Whether to use summarization")
+    parser.add_argument("--extractor", action="store_true", help="Whether to use extractor")
     parser.add_argument("--build_only", action="store_true", help="Only build the retrieval database and exit")
 
     # attack
-    parser.add_argument("--attack", type=str, choices=["iega", "icoa", "bbqg", "wbtq"], default="wbtq", help="Whether to use attack for query generation")
+    parser.add_argument("--attack", type=str, choices=["ikea", "rtf", "bbqg", "wbtq"], default="wbtq", help="Whether to use attack for query generation")
     parser.add_argument("--entity_file", type=str, default=None, help="Path to the entity file for better BBQG and iter attack")
-    parser.add_argument("--attack_num", type=int, default=3, help="Number of attack queries to generate")
+    parser.add_argument("--attack_num", type=int, default=200, help="Number of attack queries to generate")
     parser.add_argument("--batch_size", type=int, default=50, help="Batch size for processing queries")
     
     return parser.parse_args()
@@ -60,9 +55,10 @@ if __name__ == "__main__":
 
     with open("attack_shop/adv_strings/collection.json", "r", encoding="utf-8") as f:
         template_shop = json.load(f)
-    # template = template_shop["raw"]["en_strings"][0]
-    template = template_shop["code"]["en_strings"][2]
-    # AtkStaticPipeline(cfg, args, "raw_en_strings_0", adversarial_suffix=suffix)
+    template = template_shop["repeat_command"]["en_strings"][0]
+    ad_suf_name = "repeat_command_0"
+    # template = template_shop["none"]["en_strings"][0]
+    # ad_suf_name = "none_0"
 
     if args.build_only:
         print("Retrieval database built successfully. Exiting as --build_only is set.")
@@ -70,8 +66,8 @@ if __name__ == "__main__":
         retriever = VectorRetriever(cfg, device=args.device)
     else:
         if args.attack == "wbtq" or args.attack == "bbqg":
-            AtkStaticPipeline(cfg, args, "code_en_strings_2", adversarial_template=template)
-        elif args.attack == "iega":
-            AtkIEGAPipeline(cfg, args, "code_en_strings_2", adversarial_template=template)
-        elif args.attack == "icoa":
-            AtkICOAPipeline(cfg, args, "code_en_strings_2", adversarial_template=template)
+            AtkStaticPipeline(cfg, args, ad_suf_name, adversarial_template=template)
+        elif args.attack == "ikea":
+            AtkIKEAPipeline(cfg, args, ad_suf_name, adversarial_template=template)
+        elif args.attack == "rtf":
+            AtkRTFPipeline(cfg, args, ad_suf_name, adversarial_template=template)
