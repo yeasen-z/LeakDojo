@@ -1,4 +1,4 @@
-from src import AtkStaticPipeline, AtkIKEAPipeline, AtkRTFPipeline
+from src import AtkStaticPipeline, AtkIKEAPipeline, AtkRTFPipeline, AtkPoRPipeline
 from src import VectorRetriever
 import argparse
 import json
@@ -20,13 +20,13 @@ def parse_args():
     parser = argparse.ArgumentParser(description="RAG Pipeline")
 
     # 基础输入
-    parser.add_argument("--device", type=str, default="cuda:0")
+    parser.add_argument("--device", type=str, default="cuda:4")
     parser.add_argument("--cfg_name", type=str, default="fiqa", help="Config name in configs/")
 
     # LLM
     parser.add_argument("--llm_model", type=str, default="qwen3-32b")
     parser.add_argument("--llm_base_url", type=str, default="https://aihubmix.com/v1")
-    parser.add_argument("--llm_api_key", type=str, default="sk-XWaGp10Cjy2pZfttA8E538967f7f4dA7A463F584C17b63Bf")
+    parser.add_argument("--llm_api_key", type=str, default="sk-TCSKjHDLiEXpd2bv5845DfCb87F74cE3A776Be8757E2F310")
     parser.add_argument("--llm_temperature", type=float, default=0)
     parser.add_argument("--llm_top_p", type=float, default=1)
     parser.add_argument("--llm_max_gen_len", type=int, default=4096)
@@ -41,7 +41,7 @@ def parse_args():
     parser.add_argument("--build_only", action="store_true", help="Only build the retrieval database and exit")
 
     # attack
-    parser.add_argument("--attack", type=str, choices=["ikea", "rtf", "bbqg", "wbtq"], default="wbtq", help="Whether to use attack for query generation")
+    parser.add_argument("--attack", type=str, choices=["ikea", "rtf", "bbqg", "wbtq", "por"], default="wbtq", help="Whether to use attack for query generation")
     parser.add_argument("--entity_file", type=str, default=None, help="Path to the entity file for better BBQG and iter attack")
     parser.add_argument("--attack_num", type=int, default=200, help="Number of attack queries to generate")
     parser.add_argument("--batch_size", type=int, default=50, help="Batch size for processing queries")
@@ -71,3 +71,5 @@ if __name__ == "__main__":
             AtkIKEAPipeline(cfg, args, ad_suf_name, adversarial_template=template)
         elif args.attack == "rtf":
             AtkRTFPipeline(cfg, args, ad_suf_name, adversarial_template=template)
+        elif args.attack == "por":
+            AtkPoRPipeline(cfg, args)

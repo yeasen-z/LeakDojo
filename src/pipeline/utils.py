@@ -36,7 +36,7 @@ def setup(cfg, args):
     if args.rewriter and not args.reranker:
         print("[NOTING] Query rewriting is enabled but Reranker is disabled. It's recommended to use Query Rewriter with Reranker for better performance.")
 
-    extractor = LLMHybridExtractor(llm_tool, extract_config=cfg.extractor, device='cuda:9')
+    extractor = LLMHybridExtractor(llm_tool, extract_config=cfg.extractor, device=args.device)
     constructor = SimplePromptConstructor()
 
     intent_filter, output_filter = LLMIntentFilter(llm_tool=llm_tool), RougeLResponseFilter()

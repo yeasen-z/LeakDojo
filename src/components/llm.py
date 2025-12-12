@@ -34,7 +34,7 @@ class OpenAILLM(LLMManager):
         self.top_p = top_p
         self.max_gen_len = max_gen_len
 
-        self.client = OpenAI(base_url=self.base_url, api_key=self.api_key)
+        self.client = OpenAI(base_url=self.base_url, api_key=self.api_key, max_retries=3, timeout=240)
   
     def _call_api(self, prompt: str, temperature: float = None, top_p: float = None, sysprompt: str = None) -> str:
         """普通模式调用"""
@@ -50,7 +50,7 @@ class OpenAILLM(LLMManager):
                 ],
                 temperature=temperature,
                 top_p=top_p,
-                max_tokens=self.max_gen_len,
+                # max_tokens=self.max_gen_len,
                 stream=True, 
             )
         else:
@@ -62,7 +62,7 @@ class OpenAILLM(LLMManager):
                 ],
                 temperature=temperature,
                 top_p=top_p,
-                max_tokens=self.max_gen_len,
+                # max_tokens=self.max_gen_len,
                 stream=True, 
             )
         collected_content = []
@@ -90,7 +90,7 @@ class OpenAILLM(LLMManager):
                 ],
                 temperature=temperature,
                 top_p=top_p,
-                max_tokens=self.max_gen_len,
+                # max_tokens=self.max_gen_len,
                 stream=True, 
             )
         else:
@@ -102,7 +102,7 @@ class OpenAILLM(LLMManager):
                 ],
                 temperature=temperature,
                 top_p=top_p,
-                max_tokens=self.max_gen_len,
+                # max_tokens=self.max_gen_len,
                 stream=True, 
             )
         collected_content = []

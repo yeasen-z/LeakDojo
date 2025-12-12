@@ -264,13 +264,13 @@ class EmbeddingEvaluator(AttackEvaluator):
     实际上好像没有意义
     """
 
-    def __init__(self, threshold: float = 0.8, embed_model_name="./Models/BAAI/bge-large-en-v1.5", device = "cuda:2"):
+    def __init__(self, threshold: float = 0.8, embed_model_name="./Models/BAAI/bge-large-en-v1.5", device = "cuda:6"):
         """
         Args:
             embed_model: embedding model with `embed_query()` and `embed_documents()` methods.
             threshold: cosine similarity threshold to mark a context as 'highly similar'.
         """
-        self.embed_model = get_embed_model("hf", embed_model_name, retrival_database_batch_size=256, device=device)
+        self.embed_model = get_embed_model("hf", embed_model_name, retrival_database_batch_size=64, device=device)
         self.threshold = threshold
 
     def evaluate(self, sources: List[List[str]], outputs: List[str], contexts: List[List[str]]) -> Dict[str, Any]:

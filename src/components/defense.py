@@ -1,6 +1,7 @@
 import json
 import textwrap
-from typing import Literal, Dict, Any, Union, List
+from rouge_score import rouge_scorer
+from typing import Literal, Dict, Any, Union, List, Tuple
 import re
 from .llm import OpenAILLM
 from src.interfaces import IntentFilter, ResponseFilter
@@ -144,41 +145,59 @@ class LLMIntentFilter(IntentFilter):
         else:
             raise ValueError("user_input must be a string or a list of strings.")            
 
-class RougeLResponseFilter(ResponseFilter):
-    """目前还没验证，只是占位以及AI自动生成的填充代码"""
-    def __init__(self, threshold: float = 0.7):
+class RougeLResponseFilter:
+    """
+    使用 ROUGE-L F-Score 来检测 LLM 输出中是否包含对敏感参考文本的高度重复（泄露）。
+    
+    高于阈值的分数被视为泄露，并触发屏蔽。
+    """
+    
+    # 默认阈值设为 0.85，这是一个较高的值，用于捕捉近乎原文的重复。
+    def __init__(self, threshold: float = 0.85, rouge_type: str = 'rougeL'):
         self.threshold = threshold
+        self.rouge_type = rouge_type
+        # 使用 word-level (基于词语) ROUGE-L 进行计算，通常更适用于中文语义。
+        self.scorer = rouge_scorer.RougeScorer([rouge_type], use_stemmer=False)
 
-    def lcs(self, X: str, Y: str) -> int:
-        m = len(X)
-        n = len(Y)
-        L = [[0] * (n + 1) for _ in range(m + 1)]
-
-        for i in range(m + 1):
-            for j in range(n + 1):
-                if i == 0 or j == 0:
-                    L[i][j] = 0
-                elif X[i - 1] == Y[j - 1]:
-                    L[i][j] = L[i - 1][j - 1] + 1
-                else:
-                    L[i][j] = max(L[i - 1][j], L[i][j - 1])
-        return L[m][n]
-
-    def rouge_l(self, reference: str, hypothesis: str) -> float:
-        lcs_length = self.lcs(reference, hypothesis)
-        if lcs_length == 0:
-            return 0.0
-        precision = lcs_length / len(hypothesis)
-        recall = lcs_length / len(reference)
-        if precision + recall == 0:
-            return 0.0
-        f_score = (2 * precision * recall) / (precision + recall)
-        return f_score
+    def calculate_rouge_l(self, reference: str, hypothesis: str) -> float:
+        """
+        计算参考文本和假设输出之间的 ROUGE-L F-Score。
+        
+        Args:
+            reference: 敏感或原始的参考文本。
+            hypothesis: LLM 生成的输出文本。
+            
+        Returns:
+            ROUGE-L 的 F-Score (0.0 到 1.0)。
+        """
+        # 使用标准库计算分数
+        scores = self.scorer.score(reference, hypothesis)
+        # 提取 F-Score
+        score = scores[self.rouge_type].fmeasure
+        return score
 
     def check_output(self, llm_output: str, reference: str) -> str:
-        score = self.rouge_l(reference, llm_output)
-        if score < self.threshold:
-            return "抱歉，您的请求无法被处理。"
-        return llm_output
+        """
+        根据 ROUGE-L 分数判断输出是否应被屏蔽。
+        
+        Args:
+            llm_output: LLM 的原始输出。
+            reference: 用于检测泄露的敏感参考文本。
+            
+        Returns:
+            如果未泄露，返回 llm_output；如果泄露，返回屏蔽信息。
+        """
+        score = self.calculate_rouge_l(reference, llm_output)
+        
+        # print(f"--- 过滤器信息 ---")
+        # print(f"参考文本:\n'{reference[:50]}...'")
+        # print(f"LLM输出:\n'{llm_output[:50]}...'")
+        # print(f"ROUGE-L F-Score: {score:.4f}")
+        # print(f"判断阈值: {self.threshold:.4f}")
 
+        # 核心逻辑：如果分数 >= 阈值，则判定为泄露，需要屏蔽
+        if score >= self.threshold:
+            return "抱歉，您的请求无法被处理，该内容被认定为敏感信息的重复或泄露。"
+        else:
+            return llm_output
         

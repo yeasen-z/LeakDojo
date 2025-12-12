@@ -28,8 +28,8 @@ class WhiteBoxQueryLoader(QueryGenerator):
         with open(filepath, "r", encoding="utf-8") as f:
             for line in f:
                 doc = json.loads(line)
-                if doc["_id"] in self.tested_ids: # 跳过已测试的 ID
-                    continue
+                # if doc["_id"] in self.tested_ids: # 跳过已测试的 ID
+                #     continue
                 questions.append(doc) # 立即 strip
                 
         return questions
@@ -56,6 +56,8 @@ class WhiteBoxQueryLoader(QueryGenerator):
         # 使用 enumerate 来生成 ID，ID 从 0 开始
         for item in all_questions:
             idx = item['_id']
+            if idx in self.tested_ids:
+                continue
             query = item['text']
             queries_with_id_and_template.append({
                 "id": idx, 

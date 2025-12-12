@@ -29,7 +29,14 @@ def AtkRTFPipeline(cfg, args,
                                intent_filter, output_filter,
                                cfg, args)
 
-    rag_theif_attacker = RtfQueryGenerator(llm_tool)
+    rag_theif_attacker = RtfQueryGenerator(llm_tool, save_path="rtf_"+args.cfg_name+"_"+str(bool(args.rewriter))+str(bool(args.reranker))+str(bool(args.extractor))+args.llm_model+".json")
+
+    # --- load state if exists --- #
+    if os.path.exists(rag_theif_attacker.state_file):
+        print(f"{YELLOW}[INFO]{RESET} Loading existing state from {rag_theif_attacker.state_file}")
+        rag_theif_attacker.load_state()
+    else:
+        print(f"{GREEN}[INFO]{RESET} No existing state found from {rag_theif_attacker.state_file}. Starting fresh.")
 
     output_dir = cfg.generate_exp_path(args.llm_model)
     os.makedirs(output_dir, exist_ok=True)
@@ -84,6 +91,9 @@ def AtkRTFPipeline(cfg, args,
             # --- feedback --- #
             rag_theif_attacker.process_response(answers[0])
 
+            # 每次循环自动保存
+            rag_theif_attacker.save_state()
+            
             count += 1
             pbar.update(1)
         print(f"\n[SUCCESS] All results saved to {save_path}")

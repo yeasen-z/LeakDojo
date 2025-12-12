@@ -20,7 +20,7 @@ sys.stderr.reconfigure(line_buffering=True)
 # conda activate ragas_eva
 llm = ChatOpenAI(
         base_url="https://aihubmix.com/v1",
-        api_key="sk-XWaGp10Cjy2pZfttA8E538967f7f4dA7A463F584C17b63Bf",
+        api_key="sk-TCSKjHDLiEXpd2bv5845DfCb87F74cE3A776Be8757E2F310",
         model="gpt-4.1-mini", timeout=300.0
 )
 
@@ -28,6 +28,7 @@ evaluator_llm = LangchainLLMWrapper(llm)
 
 embedding_model = HuggingFaceEmbeddings(
     model_name="./Models/BAAI/bge-large-en-v1.5",
+    model_kwargs = {'device': 'cuda:1'},
     encode_kwargs={"normalize_embeddings": True}
 )
 
@@ -54,11 +55,14 @@ def jsonl_results_loader(save_path):
     return ragas_dataset
 
 
-path_dir = "./results/fiqa/gemma-3-27b-it/R__bge-large-en-v1_5_k10-RR__bge-reranker-large_n5-EX__bge-large-en-v1_5/WBTQ_RW-0_RR-1_EX-0_IF-0_OF-0_none_0.jsonl"
+path_dir = "results/nfcorpus/DeepSeek-V3/R__bge-large-en-v1_5_k10-RR__bge-reranker-large_n5-EX__bge-large-en-v1_5/WBTQ_RW-1_RR-1_EX-1_IF-0_OF-0_none_0.jsonl"
+
+print(path_dir)
+
 
 dataset = jsonl_results_loader(path_dir)
 
-print(dataset[0])
+# print(dataset[0])
 
 evaluation_dataset = EvaluationDataset.from_list(dataset)
 
@@ -70,6 +74,8 @@ result = evaluate(
     embeddings=embedding_model,
     allow_nest_asyncio=False
 )
+
+print(path_dir)
 
 print(result)
 
