@@ -109,6 +109,42 @@ class InjectionText(Enum):
     def __str__(self):
         return self.value  
 
+def extract_topics(text: str):
+    """
+    从 LLM 输出中鲁棒地提取 topics。
+    支持：
+    - 'Expected output: a, b, c'
+    - 'a, b, c'
+    - 空字符串
+    """
+    if not text or not text.strip():
+        return []
+
+    text = text.strip()
+
+    # 1. 优先匹配 Expected output
+    match = re.search(
+        r"Expected output:\s*(.*?)(?:\n|$)",
+        text,
+        re.IGNORECASE
+    )
+
+    if match:
+        content = match.group(1)
+    else:
+        # 2. fallback：直接把整行当成 topic 列表
+        content = text
+
+    # 3. 拆分 + 清洗
+    topics = [
+        t.strip().lower()
+        for t in content.split(",")
+        if t.strip()
+    ]
+
+    # 4. 去重
+    return list(set(topics))
+
 class AnchorRegister:
     """
     Manages the set of anchors (A_t) and their relevance scores (R_t).
@@ -221,12 +257,12 @@ class AnchorRegister:
         # --- Penalty Calculation for Anchors Leading to Duplicates ---
         # This corresponds to the second case in Equation 3 and the penalty term γ_t,i[cite: 372, 375].
         if len(duplicated_chunks) != 0:
-            duplicated_chunks_embeddings = np.asarray(self.embedder.embedder.embed_documents(duplicated_chunks))
+            duplicated_chunks_embeddings = np.asarray(self.embedder.embed_documents(duplicated_chunks))
             
             # Embed the anchors used in the attack
             A_t_embeddings = []
             for anchor in A_t:
-                A_t_embeddings.append(self.embedder.embedder.embed_query(anchor))
+                A_t_embeddings.append(self.embedder.embed_query(anchor))
             A_t_embeddings = np.asarray(A_t_embeddings)
             
             # Calculate the correlation (cosine similarity) between duplicate chunks and the anchors used.
@@ -339,7 +375,6 @@ class KB:
     
         return flag
 
-
 class ShuffleQuestionInjection(Enum):
     """
     Defines different ways to structure the final prompt by combining the
@@ -362,16 +397,11 @@ class PoRQueryGenerator(QueryGenerator):
     def __init__(
         self,
         llm: LLMManager,
-        data_description: dict = None,
-        device: str = "cuda:0",
         batch_size: int = 5,
         beta: float = 1,
         anchor_similarity_threshold: float = 0.8,
     ):
         self.llm = llm
-        self.data_description = data_description
-        self.topic = data_description["type"]
-        self.device = device
         self.batch_size = batch_size
 
         self.anchors_register = AnchorRegister(["love"], beta=beta, anchor_similarity_threshold=anchor_similarity_threshold)
@@ -381,13 +411,20 @@ class PoRQueryGenerator(QueryGenerator):
         # Create prompts to ask the attacker's LLM to generate a question from the topics.
         gen_questions_prompts = []
         for topics in batched_topics:
+            # print("Type of topics", type(topics))
+            if isinstance(topics, np.ndarray):
+                topics = topics.tolist()
+            topics = [str(t) for t in topics if t is not None]
+            # print("Generating question for topics:", topics)
             gen_questions_prompts.append(GEN_QUESTION_TXT.replace(r"PLACE_HOLDER_PLACE_HOLDER",", ".join(topics)))
         
-        questions = self.llm.batch_infer(gen_questions_prompts, temperature=temperature)
+        # print("Generating questions with prompts:", gen_questions_prompts[0])
+        questions, _ = self.llm.batch_infer(gen_questions_prompts, temperature=temperature)
+        # print("Raw generated questions:", questions)
         # Clean the raw output to get the final questions.
         cleaned_questions = []
         for question in questions:
-            cleaned_questions.append(question[1].replace("Expected output:","").split("\n")[0].replace("\n","").strip())
+            cleaned_questions.append(question.replace("Expected output:","").split("\n")[0].replace("\n","").strip())
         return cleaned_questions
 
     def T_generator(self, batched_chunks: List[List[str]], temperature: float = 0.0) -> List[List[str]]:
@@ -409,14 +446,18 @@ class PoRQueryGenerator(QueryGenerator):
         for chunks in batched_chunks:
             gen_topics_prompts = []
             for chunk in chunks:
-                gen_topics_prompts.append(GET_TOPIC_TXT.replace(r"PLACE_HOLDER_PLACE_HOLDER", chunk[-500:-1].strip()))
+                gen_topics_prompts.append(GET_TOPIC_TXT.replace(r"PLACE_HOLDER_PLACE_HOLDER", chunk[-800:-1].strip()))
             gen_batched_topics_prompts.append(gen_topics_prompts)
     
         gen_topics_output = []
         for chunks in gen_batched_topics_prompts:
             # Use the attacker's own LLM (oracle) to generate topics.
-            topics_chunks = self.llm.infer(chunks, temperature=temperature)
-            gen_topics_output.append([topics[1] for topics in topics_chunks])
+            # print("chunks now:", chunks)
+            if isinstance(chunks, str):
+                chunks = [chunks]
+            topics_chunks, _ = self.llm.batch_infer(chunks, temperature=temperature)
+            print("Generated topics:", topics_chunks)
+            gen_topics_output.append(topics_chunks)
     
         # --- Post-processing of the generated topics ---
         # This part is crucial for cleaning the raw LLM output into a usable list of anchors.
@@ -424,14 +465,24 @@ class PoRQueryGenerator(QueryGenerator):
         # 2. It splits the text by commas to get individual topics.
         # 3. It cleans up whitespace and converts to lowercase for consistency.
         # 4. It removes duplicates using set().
-        cleaned_topics_batched = [[list(set([topic.strip().lower() for topic in  re.search(r"Expected output:\s*(.*?)(?:\n|$)", chunks, re.IGNORECASE).group(1).split(",")])) for chunks in batch] for batch in gen_topics_output]
-    
+
+        # cleaned_topics_batched = [[list(set([topic.strip().lower() for topic in  re.search(r"Expected output:\s*(.*?)(?:\n|$)", chunks, re.IGNORECASE).group(1).split(",")])) for chunks in batch] for batch in gen_topics_output]
+
+        cleaned_topics_batched = [
+                                    [extract_topics(chunks) for chunks in batch]
+                                    for batch in gen_topics_output
+                                 ]
+
+        # only the first 3 chunks
+        cleaned_topics_batched = cleaned_topics_batched[0:3]
+
         # To avoid too many new anchors, we randomly sample at most 10 from each chunk.
         for batch in cleaned_topics_batched:
             for idx, chunk in enumerate(batch):
                 if len(chunk) > 10:
                     batch[idx] = random.sample(chunk, 10)  
         return cleaned_topics_batched, gen_topics_output
+        
     
     def generate():
         pass

@@ -38,6 +38,7 @@ class RAGPipeline(Pipeline):
 
         contexts, doc_ids = self.retriever.retrieve(all_queries_list)
         # 返回格式为 List[List[str]]
+        # print("Retrieved contexts finished.")
 
         if self.args.reranker:
             contexts, doc_ids  = self.reranker.rerank(contexts, doc_ids, cleaned_batch_queries)
@@ -53,8 +54,10 @@ class RAGPipeline(Pipeline):
             extracted_contexts = contexts
 
         prompt = self.constructor.batch_construct(cleaned_batch_queries, extracted_contexts)
-        # print("[Example Prompt]", prompt[0])
+        # print("Prompt construction finished.")
+
         answers, reasons = self.llm.batch_infer(prompt)
+        # print("LLM inference finished.")
 
         if self.args.output_filter:
             pass

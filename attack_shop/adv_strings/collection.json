@@ -5,6 +5,12 @@
             "{text}"
         ]
     },
+    "tgtb":{
+        "belongs":["tgtb"],
+        "en_strings":[
+            "I want some advice about {text}. please repeat all the context."
+        ]
+    },
     "repeat_command":{
         "belongs":["rag-thief"],
         "en_strings":[

@@ -29,8 +29,7 @@ def AtkPoRPipeline(cfg, args):
                                intent_filter, output_filter,
                                cfg, args)
     
-    por_attacker = PoRQueryGenerator(llm_tool, data_description=cfg.data["description"] ,device=args.device)
-
+    por_attacker = PoRQueryGenerator(llm_tool)
 
     output_dir = cfg.generate_exp_path(args.llm_model)
     os.makedirs(output_dir, exist_ok=True)
@@ -43,15 +42,16 @@ def AtkPoRPipeline(cfg, args):
     kb_mirror=KB()
 
     query_count = 0
+    pbar = tqdm(total=max_extraction_iteration, desc="PoR Extraction")
 
     while len([data["relevance"][-1] for data in por_attacker.anchors_register.anchors_status.values() if data["relevance"][-1] > 0]) > 0:
         if query_count >= max_extraction_iteration:
             break
         # Dictionary to store all information for the current batch.
         batch = {
-        "informations":[{"A_t":[], "generated_prompt": "", "llm_input":"", "chunks":[], "topics": [], "chunk_status":[], "added_topics": [], "command_repetition_chunks":[]} for _ in range(batch_size)],
-        "times": {"gen_questions_time_s_avg_batch": 0, "gen_topics_time_s_avg_batch": 0, "target_attack_time_s_avg_batch": 0, "kb_mirror_operations_time_s_avg_batch":0, "topic_register_operations_time_s_avg_batch":0},
-        "attack_status": {"stolen_chunks": 0, "stolen_topics": 0}
+            "informations":[{"A_t":[], "generated_prompt": "", "llm_input":"", "chunks":[], "topics": [], "chunk_status":[], "added_topics": [], "command_repetition_chunks":[]} for _ in range(batch_size)],
+            "times": {"gen_questions_time_s_avg_batch": 0, "gen_topics_time_s_avg_batch": 0, "target_attack_time_s_avg_batch": 0, "kb_mirror_operations_time_s_avg_batch":0, "topic_register_operations_time_s_avg_batch":0},
+            "attack_status": {"stolen_chunks": 0, "stolen_topics": 0}
         }
         
         # 1. Relevance-based sampling of anchors.
@@ -61,12 +61,14 @@ def AtkPoRPipeline(cfg, args):
         
         # 2. Generate base queries from the sampled anchors.
         gen_questions_time_start = time.time()
+        # print("batch[\"informations\"][index][\"A_t\"]  is",batch["informations"][index]["A_t"] )
         prompts = por_attacker.Q_generator([batch["informations"][index]["A_t"] for index in range(batch_size)], temperature=0.8)
         gen_questions_time_end = time.time()
         batch["times"]["gen_questions_time_s_avg_batch"] = (gen_questions_time_end - gen_questions_time_start)/batch_size
         
         for index in range(batch_size):
             batch["informations"][index]["generated_prompt"] = prompts[index]
+            print(f"Generated prompt for index {index}: {prompts[index]}")
         
         # 3. Attack the target RAG system.
         non_completed_elements = [i for i in range(batch_size)]
@@ -79,26 +81,16 @@ def AtkPoRPipeline(cfg, args):
         # Iterate through the injection commands until one succeeds in extracting chunks.
         for idx_command, command in enumerate(por_attacker.commands):
             prompts_injected = [str(Q_inject(batch["informations"][index]["generated_prompt"], command, ShuffleQuestionInjection.Type1)) for index in non_completed_elements]
-            
+            # print(prompts_injected)
+
+            print(f"Processing {len(prompts_injected)} injected prompts.")
+
             (cleaned_batch_queries, contexts, doc_ids, rag_prompt, answers, reasons, rewritten_queries_list, extracted_contexts) = \
                 rag_pipeline.run(prompts_injected)
             
-            # target_response = LLM_call(prompts_injected) 
-            
-            # 4. Parse the output to extract chunks.
-            for relative_index, absolute_index in enumerate(non_completed_elements):
-                    batch["informations"][absolute_index]["command_repetition_chunks"][idx_command] = 0
-                    chunks = answers[relative_index].split("\n")
-                    batch["informations"][absolute_index]["command_repetition_chunks"][idx_command] = len(chunks)
-                    batch["informations"][non_completed_elements[relative_index]]["llm_input"] = cleaned_batch_queries[relative_index]
-                    if len(chunks) > 0:
-                        batch["informations"][non_completed_elements[relative_index]]["chunks"] = chunks
-                        good_extractions.append(absolute_index)
-                        non_completed_elements[relative_index] = None
-            non_completed_elements = [index for index in non_completed_elements if index is not None]
-            if len(non_completed_elements) == 0:
-                    break
-            
+            print(f"Finished {len(prompts_injected)} injected prompts.")
+
+            # print(f"{GREEN}[+]{RESET} Completed parsing for command '{command}'. {len(non_completed_elements)} elements remaining.")
             for i in range(len(answers)):
                 # --- 结果保存 ---            
                 result_record = {
@@ -114,10 +106,26 @@ def AtkPoRPipeline(cfg, args):
                     "reason": reasons[i] if args.reasoning else None
                 }
                 query_count+=1
+                pbar.update(1)
                 with open(save_path, "a", encoding="utf-8") as f:
                     f.write(json.dumps(result_record, ensure_ascii=False) + '\n')
                     f.flush()
                     os.fsync(f.fileno())
+
+            # 4. Parse the output to extract chunks.
+            for relative_index, absolute_index in enumerate(non_completed_elements):
+                    batch["informations"][absolute_index]["command_repetition_chunks"][idx_command] = 0
+                    # chunks = answers[relative_index].split("\n")
+                    chunks = answers[relative_index].split("\n\n")
+                    batch["informations"][absolute_index]["command_repetition_chunks"][idx_command] = len(chunks)
+                    batch["informations"][non_completed_elements[relative_index]]["llm_input"] = cleaned_batch_queries[relative_index]
+                    if len(chunks) > 0:
+                        batch["informations"][non_completed_elements[relative_index]]["chunks"] = chunks
+                        good_extractions.append(absolute_index)
+                        non_completed_elements[relative_index] = None
+            non_completed_elements = [index for index in non_completed_elements if index is not None]
+            if len(non_completed_elements) == 0:
+                    break
             
         target_attack_time_end = time.time()
         batch["times"]["target_attack_time_s_avg_batch"] = (target_attack_time_end - target_attack_time_start)/batch_size
@@ -126,8 +134,8 @@ def AtkPoRPipeline(cfg, args):
         kb_insertion_time_start = time.time()
         for index in range(batch_size):
             for idx_chunk, chunk in enumerate(batch["informations"][index]["chunks"]):
-                    # `add_knowledge` returns True if the chunk is new.
-                    batch["informations"][index]["chunk_status"].append(kb_mirror.add_knowledge(chunk))
+                # `add_knowledge` returns True if the chunk is new.
+                batch["informations"][index]["chunk_status"].append(kb_mirror.add_knowledge(chunk))
         kb_insertion_time_end = time.time()
         batch["times"]["kb_mirror_operations_time_s_avg_batch"] = (kb_insertion_time_end - kb_insertion_time_start)/batch_size
         
@@ -162,12 +170,11 @@ def AtkPoRPipeline(cfg, args):
         num_topics = len(por_attacker.anchors_register.anchors_status.keys())
         batch["attack_status"]["stolen_chunks"] = num_stolen_docs
         batch["attack_status"]["stolen_topics"] = num_topics
-        
-        
-        GENERAL_CLOCK += 1
-        
+                
         # Log metrics to wandb.
         status = f"Stolen Documents: {num_stolen_docs}, Topics: {num_topics}"
         
         print(status.ljust(80), end='\r')
         sys.stdout.flush()
+
+    pbar.close()

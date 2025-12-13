@@ -71,6 +71,14 @@ def AtkStaticPipeline(cfg, args,
                             tested_ids=list(processed_ids),
                             attack_num=args.attack_num,
                             adversarial_template=adversarial_template)
+    elif args.attack == "tgtb":
+        query_generator = BlackBoxQueryGenerator(
+                            cfg.data["description"], 
+                            llm, 
+                            attack_num=args.attack_num, 
+                            words_used=list(processed_ids),
+                            existed_entity_file=args.entity_file,
+                            adversarial_template=adversarial_template)
     else:
         raise ValueError(f"Attack method {args.attack} not supported.")
 

@@ -1,4 +1,4 @@
-from src import AtkStaticPipeline, AtkIKEAPipeline, AtkRTFPipeline, AtkPoRPipeline
+from src import AtkStaticPipeline, AtkIKEAPipeline, AtkRTFPipeline, AtkPoRPipeline, AtkDGEAPipeline
 from src import VectorRetriever
 import argparse
 import json
@@ -20,7 +20,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="RAG Pipeline")
 
     # 基础输入
-    parser.add_argument("--device", type=str, default="cuda:4")
+    parser.add_argument("--device", type=str, default="cuda:9")
     parser.add_argument("--cfg_name", type=str, default="fiqa", help="Config name in configs/")
 
     # LLM
@@ -41,7 +41,7 @@ def parse_args():
     parser.add_argument("--build_only", action="store_true", help="Only build the retrieval database and exit")
 
     # attack
-    parser.add_argument("--attack", type=str, choices=["ikea", "rtf", "bbqg", "wbtq", "por"], default="wbtq", help="Whether to use attack for query generation")
+    parser.add_argument("--attack", type=str, choices=["ikea", "rtf", "bbqg", "wbtq", "por", "dgea", "tgtb"], default="wbtq", help="Whether to use attack for query generation")
     parser.add_argument("--entity_file", type=str, default=None, help="Path to the entity file for better BBQG and iter attack")
     parser.add_argument("--attack_num", type=int, default=200, help="Number of attack queries to generate")
     parser.add_argument("--batch_size", type=int, default=50, help="Batch size for processing queries")
@@ -65,7 +65,10 @@ if __name__ == "__main__":
         cfg.data["force_rebuild"] = args.build_only
         retriever = VectorRetriever(cfg, device=args.device)
     else:
-        if args.attack == "wbtq" or args.attack == "bbqg":
+        if args.attack == "wbtq" or args.attack == "bbqg" or args.attack == "tgtb":
+            if args.attack == "tgtb":
+                template = template_shop["tgtb"]["en_strings"][0]
+                ad_suf_name = "tgtb_0"
             AtkStaticPipeline(cfg, args, ad_suf_name, adversarial_template=template)
         elif args.attack == "ikea":
             AtkIKEAPipeline(cfg, args, ad_suf_name, adversarial_template=template)
@@ -73,3 +76,5 @@ if __name__ == "__main__":
             AtkRTFPipeline(cfg, args, ad_suf_name, adversarial_template=template)
         elif args.attack == "por":
             AtkPoRPipeline(cfg, args)
+        elif args.attack == "dgea":
+            AtkDGEAPipeline(cfg, args)
