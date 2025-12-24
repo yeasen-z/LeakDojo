@@ -55,8 +55,7 @@ if __name__ == "__main__":
 
     with open("attack_shop/adv_strings/collection.json", "r", encoding="utf-8") as f:
         template_shop = json.load(f)
-    template = template_shop["repeat_command"]["en_strings"][0]
-    ad_suf_name = "repeat_command_0"
+
     # template = template_shop["none"]["en_strings"][0]
     # ad_suf_name = "none_0"
 
@@ -68,11 +67,18 @@ if __name__ == "__main__":
         if args.attack == "wbtq" or args.attack == "bbqg" or args.attack == "tgtb":
             if args.attack == "tgtb":
                 template = template_shop["tgtb"]["en_strings"][0]
-                ad_suf_name = "tgtb_0"
+                ad_suf_name = "tgtb"
+            else:
+                template = template_shop["repeat_command"]["en_strings"][0]
+                ad_suf_name = "repeat_command_0"
             AtkStaticPipeline(cfg, args, ad_suf_name, adversarial_template=template)
         elif args.attack == "ikea":
+            template = template_shop["repeat_command"]["en_strings"][0]
+            ad_suf_name = "repeat_command_0"
             AtkIKEAPipeline(cfg, args, ad_suf_name, adversarial_template=template)
         elif args.attack == "rtf":
+            ad_suf_name = "rtf_attack"
+            template = template_shop["rag_thief"]["en_strings"][0]
             AtkRTFPipeline(cfg, args, ad_suf_name, adversarial_template=template)
         elif args.attack == "por":
             AtkPoRPipeline(cfg, args)

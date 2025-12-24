@@ -3,9 +3,12 @@ data/
 retrieval_stores/*
 Models/
 exp/*
-exp_old/*
 logs/*
 results/*
+z_1000/*
+z_llm_exp/*
+z_exp_log/*
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

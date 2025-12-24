@@ -18,6 +18,18 @@ RESET = "\x1b[0m"
 import random
 random.seed(42)
 
+def count_lines(filepath):
+    """计算 JSONL 文件中的行数。"""
+    if not os.path.exists(filepath):
+        return 0
+    
+    count = 0
+    # 使用 'rb' 模式并迭代读取，效率更高
+    with open(filepath, 'rb') as f:
+        # 统计换行符数量
+        count = sum(1 for _ in f)
+    return count
+
 def AtkDGEAPipeline(cfg, args):
 
     llm, llm_tool, intent_filter, output_filter, query_rewriter, retriever, reranker, extractor, constructor = setup(cfg, args)
@@ -41,9 +53,12 @@ def AtkDGEAPipeline(cfg, args):
     dgea_query_generator = DGEAQueryGenerator(llm_tool, vectors_num=vectors_num, device=args.device)
     
     embedding_space = []
-    start_index = 0
+    # start_index = 0
+    start_index = count_lines(save_path)
+    print(f"检测到上次运行已保存 {YELLOW}{start_index}{RESET} 条记录。")
+    print(f"本次运行将从向量索引 {YELLOW}{start_index}{RESET} 开始继续。")
 
-    pbar = tqdm(total=vectors_num, desc="DGEA Extraction")
+    pbar = tqdm(total=vectors_num-start_index, desc="DGEA Extraction")
 
     perturbed_sentence = dgea_query_generator.prefix
 
@@ -86,12 +101,12 @@ def AtkDGEAPipeline(cfg, args):
         print("Cosine:", 1 - best_loss)
 
         (cleaned_batch_queries, contexts, doc_ids, rag_prompt, answers, reasons, rewritten_queries_list, extracted_contexts) = \
-            rag_pipeline.run(perturbed_sentence)
+            rag_pipeline.run([perturbed_sentence])
         
         result_record = {
             "id": str(index), # 迭代次数作为唯一标识符
             "query_with_template": perturbed_sentence,
-            "cleaned_query": cleaned_batch_queries[0],
+            "cleaned_query": cleaned_batch_queries,
             "rewritten_queries": rewritten_queries_list[0] if args.rewriter else [None],
             "contexts": contexts[0],
             "doc_ids": doc_ids[0],
@@ -113,4 +128,6 @@ def AtkDGEAPipeline(cfg, args):
         time_taken = time_end - time_start
         print(f'Time taken for this vector is {time_taken}')
 
+    print(f"\n[SUCCESS] All results saved to {save_path}")
 
+    return save_path

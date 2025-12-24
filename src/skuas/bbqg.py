@@ -87,6 +87,12 @@ class BlackBoxQueryGenerator(QueryGenerator):
         - 用得越多，选中概率越低；
         - temperature 越高，随机性越强。
         """
+        # if len(entities) == 0:
+        #     raise RuntimeError("weighted_entity_choice called with empty entities")
+        # if len(entities) != len(usage_count):
+        #     raise ValueError(
+        #         f"entities ({len(entities)}) and usage_count ({len(usage_count)}) size mismatch"
+        #     )
         usage_count = np.array(usage_count, dtype=float)
         weights = np.exp(-usage_count / temperature)
         probs = weights / weights.sum()

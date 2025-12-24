@@ -178,3 +178,7 @@ def AtkPoRPipeline(cfg, args):
         sys.stdout.flush()
 
     pbar.close()
+
+    print(f"\n[SUCCESS] All results saved to {save_path}")
+
+    return save_path
