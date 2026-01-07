@@ -57,13 +57,13 @@ def AtkStaticPipeline(cfg, args,
         print(f"[INFO] No existing checkpoint found. Starting from scratch.")
 
 
-    if args.attack == "bbqg":
+    if args.attack == "pide":
         query_generator = BlackBoxQueryGenerator(
                             cfg.data["description"], 
                             llm, 
                             attack_num=args.attack_num, 
                             words_used=list(processed_ids),
-                            existed_entity_file=args.entity_file,
+                            existed_entity_file=args.entity_file if args.entity_file else "attack_shop/miscs/tgtb/Random_wikitext.json",
                             adversarial_template=adversarial_template)
     elif args.attack == "wbtq":
         query_generator = WhiteBoxQueryLoader(
@@ -77,7 +77,7 @@ def AtkStaticPipeline(cfg, args,
                             llm, 
                             attack_num=args.attack_num, 
                             words_used=list(processed_ids),
-                            existed_entity_file=args.entity_file,
+                            existed_entity_file=args.entity_file if args.entity_file else "attack_shop/miscs/tgtb/Random_wikitext.json",
                             adversarial_template=adversarial_template)
     else:
         raise ValueError(f"Attack method {args.attack} not supported.")
@@ -85,7 +85,7 @@ def AtkStaticPipeline(cfg, args,
     queries_with_id_and_template = query_generator.generate() 
     print(f"[INFO] Total {len(queries_with_id_and_template)} queries generated/loaded by {args.attack} method.")
 
-    # 这里实际上只是双重防护，因为QueryGenerator已经考虑过processed_ids(BBQG不考虑)
+    # 这里实际上只是双重防护，因为QueryGenerator已经考虑过processed_ids
     remaining_queries_with_id_and_template = [
         item for item in queries_with_id_and_template if item['id'] not in processed_ids
     ]

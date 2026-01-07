@@ -49,7 +49,7 @@ class OpenAILLM(LLMManager):
                     {"role": "user", "content": prompt}
                 ],
                 temperature=temperature,
-                top_p=top_p,
+                # top_p=top_p,
                 # max_tokens=self.max_gen_len,
                 stream=True, 
             )
@@ -61,7 +61,7 @@ class OpenAILLM(LLMManager):
                     {"role": "user", "content": prompt}
                 ],
                 temperature=temperature,
-                top_p=top_p,
+                # top_p=top_p,
                 # max_tokens=self.max_gen_len,
                 stream=True, 
             )
@@ -89,7 +89,7 @@ class OpenAILLM(LLMManager):
                     {"role": "user", "content": prompt}
                 ],
                 temperature=temperature,
-                top_p=top_p,
+                # top_p=top_p,
                 # max_tokens=self.max_gen_len,
                 stream=True, 
             )
@@ -101,7 +101,7 @@ class OpenAILLM(LLMManager):
                     {"role": "user", "content": prompt}
                 ],
                 temperature=temperature,
-                top_p=top_p,
+                # top_p=top_p,
                 # max_tokens=self.max_gen_len,
                 stream=True, 
             )

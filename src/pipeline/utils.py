@@ -23,6 +23,7 @@ def setup(cfg, args):
                     reasoning = cfg.tool_llm["reasoning"],
                     temperature = cfg.tool_llm["temperature"],
                     top_p = cfg.tool_llm["top_p"],
+                    max_gen_len = 1024,
                     max_workers = 50)
 
     query_rewriter = LLMQueryRewriter(llm_tool, cfg.data["description"])

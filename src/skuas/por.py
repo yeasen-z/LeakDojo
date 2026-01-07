@@ -170,14 +170,14 @@ class AnchorRegister:
                                                     during a similarity search. Defaults to 100.
         """
         # The attacker-side embedder (e* in the paper) for vector operations[cite: 44, 197].
-        self.embedder = get_embed_model("hf", "Snowflake/snowflake-arctic-embed-l", device = "cuda:1")
+        self.embedder = get_embed_model("hf", "Snowflake/snowflake-arctic-embed-l", device = "cuda:9")
         
         # A vector store (ChromaDB) to hold the anchor embeddings for efficient similarity search.
         # This is used to check for duplicate anchors.
         self.anchors_knowledge = Chroma(
                     collection_name="topic_knowledge",
                     embedding_function=self.embedder,
-                    collection_metadata={"hnsw": "cosine"},
+                    collection_metadata={"hnsw": "cosine"}
                 )
         self.similarity_threshold = anchor_similarity_threshold
         
@@ -328,7 +328,7 @@ class KB:
     """
     def __init__(self) -> None:
         # Uses the same embedder as the anchor register for consistency.
-        self.embedder = get_embed_model("hf", "Snowflake/snowflake-arctic-embed-l", device = "cuda:1")
+        self.embedder = get_embed_model("hf", "Snowflake/snowflake-arctic-embed-l", device = "cuda:9")
     
         # A vector store for the stolen chunks.
         self.kb = Chroma(
@@ -404,7 +404,10 @@ class PoRQueryGenerator(QueryGenerator):
         self.llm = llm
         self.batch_size = batch_size
 
-        self.anchors_register = AnchorRegister(["love"], beta=beta, anchor_similarity_threshold=anchor_similarity_threshold)
+        self.anchors_register = AnchorRegister([
+            "love"
+            # "Banking organizations", "regulatory burdens", "legal complexities", "structuring laws", "compliance", "business avoidance", "technical skills", "Excel", "current events", "technical translation", "corporate undervaluation"
+            ], beta=beta, anchor_similarity_threshold=anchor_similarity_threshold)
         self.commands = [InjectionText.InjectCommand1, InjectionText.InjectCommand2, InjectionText.InjectCommand3, InjectionText.InjectCommand4]
 
     def Q_generator(self, batched_topics: List[List[str]], temperature: float = 0.8) -> List[str]:

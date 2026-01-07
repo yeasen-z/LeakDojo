@@ -15,6 +15,13 @@ RESET = "\x1b[0m"
 
 import random
 random.seed(42)
+def get_jsonl_line_count(path: str) -> int:
+    if not os.path.exists(path):
+        return 0
+
+    with open(path, "r", encoding="utf-8") as f:
+        return sum(1 for _ in f)
+
 
 def AtkPoRPipeline(cfg, args):
 
@@ -41,8 +48,11 @@ def AtkPoRPipeline(cfg, args):
     batch_size = args.batch_size
     kb_mirror=KB()
 
-    query_count = 0
-    pbar = tqdm(total=max_extraction_iteration, desc="PoR Extraction")
+    count = get_jsonl_line_count(save_path)
+    print(f"Resume from {count} records")
+
+    query_count = count
+    pbar = tqdm(total=max_extraction_iteration, desc="PoR Extraction",  initial = query_count)
 
     while len([data["relevance"][-1] for data in por_attacker.anchors_register.anchors_status.values() if data["relevance"][-1] > 0]) > 0:
         if query_count >= max_extraction_iteration:

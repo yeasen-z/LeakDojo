@@ -5,10 +5,11 @@ Models/
 exp/*
 logs/*
 results/*
+results_nosota/*
 z_1000/*
 z_llm_exp/*
 z_exp_log/*
-
+results_wbtq/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -62,6 +63,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+*.pdf
 
 # Translations
 *.mo

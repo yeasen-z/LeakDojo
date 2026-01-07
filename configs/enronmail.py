@@ -13,9 +13,9 @@ enronmail = VRConfig(
             }
         },
         "tool_llm": {
-            "model": "gpt-4.1-mini",
+            "model": "gpt-4.1-nano",
             "base_url": "https://aihubmix.com/v1",
-            "api_key": "sk-TCSKjHDLiEXpd2bv5845DfCb87F74cE3A776Be8757E2F310",
+            "api_key": "sk-XWaGp10Cjy2pZfttA8E538967f7f4dA7A463F584C17b63Bf",
             "reasoning": True,
             "temperature": 0.7,
             "top_p": 0.8
