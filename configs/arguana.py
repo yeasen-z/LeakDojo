@@ -15,7 +15,7 @@ arguana = VRConfig(
         "tool_llm": {
             "model": "gpt-4.1-mini",
             "base_url": "https://aihubmix.com/v1",
-            "api_key": "sk-XWaGp10Cjy2pZfttA8E538967f7f4dA7A463F584C17b63Bf",
+            "api_key": "YOUR_API_KEY_HERE",
             "reasoning": True,
             "temperature": 0.7,
             "top_p": 0.8

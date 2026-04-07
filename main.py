@@ -26,7 +26,7 @@ def parse_args():
     # LLM
     parser.add_argument("--llm_model", type=str, default="qwen3-32b")
     parser.add_argument("--llm_base_url", type=str, default="https://aihubmix.com/v1")
-    parser.add_argument("--llm_api_key", type=str, default="sk-XWaGp10Cjy2pZfttA8E538967f7f4dA7A463F584C17b63Bf")
+    parser.add_argument("--llm_api_key", type=str, default="YOUR_API_KEY_HERE")
     parser.add_argument("--llm_temperature", type=float, default=0)
     parser.add_argument("--llm_top_p", type=float, default=1)
     parser.add_argument("--llm_max_gen_len", type=int, default=2048)

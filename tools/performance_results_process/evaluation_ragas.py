@@ -20,7 +20,7 @@ sys.stderr.reconfigure(line_buffering=True)
 # conda activate ragas_eva
 llm = ChatOpenAI(
         base_url="https://aihubmix.com/v1",
-        api_key="sk-XWaGp10Cjy2pZfttA8E538967f7f4dA7A463F584C17b63Bf",
+        api_key="YOUR_API_KEY_HERE",
         model="gpt-4.1-mini", timeout=300.0
 )
 

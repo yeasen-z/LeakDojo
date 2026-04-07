@@ -213,7 +213,7 @@ class InfoDepthEvaluator:
     def __init__(self, 
                  model="gpt-4.1-mini",
                  checkpoint_path="checkpoint.json",
-                 api_key = "sk-XWaGp10Cjy2pZfttA8E538967f7f4dA7A463F584C17b63Bf"):
+                 api_key = "YOUR_API_KEY_HERE"):
 
         self.model = model
         self.checkpoint_path = checkpoint_path
