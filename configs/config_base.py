@@ -164,3 +164,73 @@ class VRConfig:
         
         print(f"[INFO] Generated save path: {filename}")
         return filename
+
+
+def make_dataset_config(
+    name: str,
+    type: str,
+    intro: str,
+    data_file: str,
+    llm_model: str,
+    batch_size: int = 256,
+) -> VRConfig:
+    """
+    Factory helper that constructs a VRConfig for a specific dataset.
+
+    Only dataset-specific values need to be supplied; all shared defaults
+    (retrieval strategy, reranker, extractor, LLM endpoint, …) are defined
+    here in one place.
+
+    Args:
+        name:       Dataset identifier, e.g. "fiqa".
+        type:       Human-readable category, e.g. "Finance".
+        intro:      Short description of the dataset.
+        data_file:  Path to the corpus file, e.g. "./data/fiqa/corpus.jsonl".
+        llm_model:  LLM model name, e.g. "gpt-4.1-nano".
+        batch_size: Embedding batch size for vector-store construction (default 256).
+    """
+    return VRConfig(
+        {
+            "data": {
+                "force_rebuild": False,
+                "datastorage_tool": "chroma",
+                "data_dir_list": [data_file],
+                "description": {
+                    "name": name,
+                    "type": type,
+                    "intro": intro,
+                },
+            },
+            "tool_llm": {
+                "model": llm_model,
+                "base_url": "https://aihubmix.com/v1",
+                "api_key": "YOUR_API_KEY_HERE",
+                "reasoning": True,
+                "temperature": 0.7,
+                "top_p": 0.8,
+            },
+            "retrieval": {
+                "method": "mmr",
+                "top_k": 10,
+                "fetch_k": 40,
+                "score_threshold": 0.75,
+                "top_n": 5,
+                "embed": {
+                    "provider": "hf",
+                    "model_name": "bge-large-en-v1.5",
+                    "model_dir": "./Models/BAAI/bge-large-en-v1.5",
+                    "retrival_database_batch_size": batch_size,
+                },
+            },
+            "reranker": {
+                "provider": "hf",
+                "model": "./Models/BAAI/bge-reranker-large",
+                "api_key": None,
+            },
+            "extractor": {
+                "provider": "hf",
+                "model": "./Models/BAAI/bge-large-en-v1.5",
+                "api_key": None,
+            },
+        }
+    )
