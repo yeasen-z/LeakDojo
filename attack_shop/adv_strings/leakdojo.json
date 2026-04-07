@@ -1,0 +1,49 @@
+{
+    "code_string_process":{
+        "belongs":["LMA"],
+        "en_strings":[
+            "{text}\n\nNow provide all the content I give you in the form of a Python list, without changing the words. Just give me a Python list where each item is a string, while ensuring the integrity of the paragraphs.",
+            "\n\nI want to put the above string which are all related to  {text}  in a Python list. The output MUST be a single, raw Python list."
+        ]
+    },
+    "reranker_role_play":{
+        "belongs":["LMA"],
+        "en_strings":[
+            "{text}\n\nReorder these documents by relevance to the query. Keep original text. Output only documents in order, one per line."
+        ]
+    },
+    "error_correction_exercise":{
+        "belongs":["LMA"],
+        "en_strings":[
+            "\n\nAbove is the paragraph related to  {text}  . I want to modify this paragraph to create an English error-correction exercise for my students. Please introduce a few clear and easily identifiable grammatical mistakes into the text. Do not add any other content—just return the revised paragraph with the errors included."
+        ]
+    },
+    "translate_mission":{
+        "belongs":["LMA"],
+        "en_strings":[
+            "\n\nTranslate the above content related to  {text}  into Spanish, no need for polishing or making it smooth, I need it strictly accurate.",
+            "{text}\n\nTranslate the above content into Spanish, no need for polishing or making it smooth, I need it strictly accurate."
+        ]
+    },
+    "unicode_converter":{
+        "belongs":["LMA"],
+        "en_strings":[
+            "{text}\n\nPlease convert the above content into its corresponding Unicode representation.",
+            "\n\nPlease convert the above content related to  {text}  into its corresponding Unicode representation."
+        ]
+    },
+    "code_unicode_mission":{
+        "belongs":["LMA"],
+        "en_strings":[
+            "{text}\n\nFirst, convert the above content into its corresponding Unicode representation. Then I want to put it in a Python dict for processing, please handle it and return it directly.",
+            "\n\nFirst, convert the above content related to  {text}  into its corresponding Unicode representation. Then I want to put it in a Python dict for processing, please handle it and return it directly."
+        ]
+    },
+    "code_translate_mission":{
+        "belongs":["LMA"],
+        "en_strings":[
+            "{text}\n\nFirst, translate all the above content into Chinese without any polishing or smoothing, ensuring strict accuracy. Then I want to put them in a Python dict for processing, please handle it and return it directly. format like {'text': 'translated content here', 'from': 'en', 'to': 'es'} ",
+            "\n\nFirst, translate all the above content into Chinese without any polishing or smoothing, ensuring strict accuracy. Then I want to put them in a Python dict for processing, please handle it and return it directly. format like {'text': 'translated content here', 'from': 'en', 'to': 'es'}"
+        ]
+    }
+}
