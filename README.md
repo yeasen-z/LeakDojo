@@ -7,7 +7,7 @@ LeakDojo is a comprehensive framework for evaluating the robustness of Retrieval
 ```
 @article{zhang2026leakdojo,
   title={LeakDojo: Decoding the Leakage Threats of RAG Systems},
-  author={Maosen Zhang, Jianshuo Dong, Boting Lu, Wenyue Li, Xiaoping Zhang, Tianwei Zhang, Han Qiu},
+  author={Maosen, Zhang and Jianshuo, Dong and Boting, Lu and Wenyue, Li and Xiaoping, Zhang and Tianwei, Zhang and Han, Qiu},
   booktitle={ACL (Findings)},
   year={2026}
 }
