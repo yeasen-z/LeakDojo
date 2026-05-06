@@ -4,6 +4,15 @@ Official codebase for **"LeakDojo: Decoding the Leakage Threats of RAG Systems"*
 
 LeakDojo is a comprehensive framework for evaluating the robustness of Retrieval-Augmented Generation (RAG) systems against knowledge extraction attacks. It implements 7 attack methods, configurable RAG pipelines, and multiple evaluation metrics to systematically assess information leakage risks. It further introduces novel logic-bypassing attack instructions designed to evade guardrails, enabling more effective knowledge extraction. See [`attack_shop/adv_strings/leakdojo.json`](attack_shop/adv_strings/leakdojo.json) for the full set of LMA (Logical Masking Attack) templates.
 
+```
+@article{zhang2026leakdojo,
+  title={LeakDojo: Decoding the Leakage Threats of RAG Systems},
+  author={Maosen Zhang, Jianshuo Dong, Boting Lu, Wenyue Li, Xiaoping Zhang, Tianwei Zhang, Han Qiu},
+  booktitle={ACL (Findings)},
+  year={2026}
+}
+```
+
 ---
 
 ## Table of Contents
@@ -263,12 +272,5 @@ bash scripts/run_evaluate.sh <result_file.jsonl>
 |--------|-------------|
 | ROUGE-L Recall | Overlap between response and retrieved contexts |
 | Unique Chunks | Number of distinct corpus chunks extracted |
-
-### Results Storage
-
-Results are saved to `./results/{dataset}/{llm_model}/{rag_config_tag}/` with filenames encoding the attack method and enabled components, e.g.:
-```
-results/fiqa/Qwen2_5-14B-Instruct/R__bge-large-en-v1-5_k10-RR__bge-reranker-large_n5/TGTB_RW-0_RR-1_EX-0_IF-0_OF-0_tgtb.jsonl
-```
 
 ---
