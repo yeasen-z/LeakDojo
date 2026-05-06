@@ -5,7 +5,7 @@ Official codebase for **"LeakDojo: Decoding the Leakage Threats of RAG Systems"*
 LeakDojo is a comprehensive framework for evaluating the robustness of Retrieval-Augmented Generation (RAG) systems against knowledge extraction attacks. It implements 7 attack methods, configurable RAG pipelines, and multiple evaluation metrics to systematically assess information leakage risks. It further introduces novel logic-bypassing attack instructions designed to evade guardrails, enabling more effective knowledge extraction. See [`attack_shop/adv_strings/leakdojo.json`](attack_shop/adv_strings/leakdojo.json) for the full set of LMA (Logical Masking Attack) templates.
 
 ```
-@article{zhang2026leakdojo,
+@inproceedings{zhang2026leakdojo,
   title={LeakDojo: Decoding the Leakage Threats of RAG Systems},
   author={Zhang, Maosen and Dong, Jianshuo and Lu, Boting and Li, Wenyue and Zhang, Xiaoping and Zhang, Tianwei and Qiu, Han},
   booktitle={ACL (Findings)},
